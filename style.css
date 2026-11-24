@@ -1,0 +1,696 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at top, #22223b, #1a1a2e 70%);
+  color: #eee;
+  font-family: "Courier New", monospace;
+}
+
+.game-container {
+  text-align: center;
+  padding: 20px;
+}
+
+h1 {
+  margin-bottom: 10px;
+  letter-spacing: 2px;
+}
+
+/* !important så ID-regler som #menu-screen ikke overstyrer skjul-klassen */
+.screen.hidden {
+  display: none !important;
+}
+
+/* Panelet over banen: en lille boks pr. special frugt eller power-up på banen */
+.bonus-panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 400px;
+  max-width: 100%;
+  min-height: 40px;
+  margin: 0 auto 10px;
+}
+
+.bonus-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.bonus-icon {
+  width: 32px;
+  height: 32px;
+  background: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.bonus-info {
+  display: flex;
+  flex-direction: column;
+  width: 80px;
+  font-size: 13px;
+}
+
+.bonus-bar {
+  height: 8px;
+  margin-top: 4px;
+  background: #22223b;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.bonus-bar-fill {
+  height: 100%;
+  background: #f4a261;
+}
+
+/* under spillet vises kun banen, ikke sidens overskrift */
+body.in-game h1 {
+  display: none;
+}
+
+/* Indstillinger står i faste kolonner, så rækkerne flugter med hinanden */
+.option-row {
+  display: grid;
+  grid-template-columns: 110px 1fr 1fr 1fr;
+  align-items: center;
+  width: 460px;
+  max-width: 100%;
+  margin: 10px 0;
+  text-align: left;
+}
+
+.option-title {
+  font-weight: bold;
+}
+
+.option-row label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.option-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+}
+
+.name-row {
+  grid-template-columns: 110px 1fr;
+}
+
+.name-row input {
+  width: 100%;
+}
+
+#menu-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #22223b;
+  padding: 24px 30px;
+  border-radius: 10px;
+  border: 3px solid #4ecca3;
+}
+
+select, button {
+  font-family: inherit;
+  font-size: 15px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+}
+
+input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+}
+
+button {
+  background: #4ecca3;
+  color: #1a1a2e;
+  font-weight: bold;
+  padding: 10px 20px;
+  margin: 6px;
+}
+
+button:hover {
+  background: #3bb08f;
+}
+
+.hud {
+  display: flex;
+  justify-content: space-between;
+  width: 400px;
+  margin: 0 auto 10px;
+  font-size: 16px;
+}
+
+canvas {
+  background: #0f0f1a;
+  border: 3px solid #4ecca3;
+  border-radius: 6px;
+  box-shadow: 0 0 24px rgba(78, 204, 163, 0.25);
+  display: block;
+  margin: 0 auto;
+}
+
+.hint {
+  margin-top: 10px;
+  font-size: 13px;
+  color: #aaa;
+}
+
+/* Regler-pop-up */
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.modal.hidden {
+  display: none;
+}
+
+.modal-box {
+  width: 100%;
+  max-width: 460px;
+  max-height: 85vh;
+  overflow-y: auto;
+  padding: 20px 24px;
+  text-align: left;
+  background: #22223b;
+  border: 3px solid #4ecca3;
+  border-radius: 10px;
+}
+
+/* Top 100-vinduet er bredere, så navn, point og tal kan stå på færre linjer.
+   Selve vinduet ruller ikke: kun listen indeni gør, så der aldrig er to rullebjælker */
+.modal-box.modal-wide {
+  display: flex;
+  flex-direction: column;
+  max-width: 820px;
+  max-height: 92vh;
+  overflow: hidden;
+}
+
+.modal-box.modal-wide > .scoreboard-full {
+  flex: 0 1 auto;
+  min-height: 0;
+}
+
+.modal-box.modal-wide > button {
+  flex: none;
+}
+
+.modal-box > h3 {
+  text-align: center;
+}
+
+.modal-box > button {
+  display: block;
+  margin: 12px auto 0;
+}
+
+/* Øverste linje i en post: navn til venstre, og point, frugter og længste combo til højre.
+   Alt står på én linje med fast højde, så intet rykker sig, når man skifter side. Et langt navn forkortes med ... */
+.lb-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.lb-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-weight: bold;
+  font-size: 15px;
+}
+
+.lb-main {
+  flex: none;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: bold;
+  color: #4ecca3;
+}
+
+/* Det tal, listen er sorteret efter, fremhæves lidt: lys skrift og en grøn baggrund bag.
+   Baggrunden ligger bag teksten (en skygge uden for den), så den ikke fylder og får noget til at rykke */
+.lb-hot {
+  color: #fff;
+  background: rgba(78, 204, 163, 0.32);
+  box-shadow: 0 0 0 3px rgba(78, 204, 163, 0.32);
+  border-radius: 3px;
+}
+
+/* Resten af tallene */
+.lb-sub {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  color: #bbb;
+}
+
+/* Combo-tallet over banen: viser hvor høj ens combo er. Blinker de sidste 3 sekunder, før den løber ud */
+.combo-meter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 400px;
+  max-width: 100%;
+  height: 26px;
+  margin: 0 auto 6px;
+  font-size: 16px;
+  font-weight: bold;
+  color: #4ecca3;
+}
+
+.combo-meter.invisible {
+  visibility: hidden;
+}
+
+.combo-meter.blinking {
+  color: #ff9f1c;
+  animation: combo-blink 0.5s steps(1, end) infinite;
+}
+
+@keyframes combo-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}
+
+/* Rækken over banen med aktive power-ups */
+.status-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  width: 400px;
+  max-width: 100%;
+  min-height: 26px;
+  margin: 0 auto 6px;
+  font-size: 13px;
+  font-weight: bold;
+}
+
+.status-chip {
+  padding: 2px 10px;
+  border: 1px solid currentColor;
+  border-radius: 12px;
+  background: #22223b;
+}
+
+/* Knapperne nederst i menuen: Indstillinger og Regler står på linje ovenfor,
+   og Start spil er nederst og størst på hele bredden */
+.menu-actions {
+  width: 460px;
+  max-width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: stretch;
+  gap: 8px;
+  margin-top: 24px;
+}
+
+.menu-actions button {
+  flex: 1 1 0;
+  min-width: 0;
+  margin: 0;
+  padding: 10px 8px;
+  font-size: 14px;
+}
+
+.menu-actions #start-btn {
+  flex: 1 1 100%;
+  padding: 14px 20px;
+  font-size: 18px;
+}
+
+.menu-actions #settings-btn,
+.menu-actions #rules-btn {
+  background: #3a3a5c;
+  color: #eee;
+}
+
+.menu-actions #settings-btn:hover,
+.menu-actions #rules-btn:hover {
+  background: #4a4a70;
+}
+
+/* Fyrværkeri over hele siden, også hen over teksten og pop-ups. Det tager ikke imod klik og er skjult, når der ikke er noget */
+canvas.fireworks {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: none;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  background: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  pointer-events: none;
+}
+
+canvas.fireworks.active {
+  display: block;
+}
+
+/* Lyd-ikon i hjørnet, altid synligt */
+.sound-btn {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 5;
+  width: 40px;
+  height: 40px;
+  margin: 0;
+  padding: 0;
+  font-size: 18px;
+  border-radius: 50%;
+}
+
+/* Regelbogen: taster øverst og så et kort for hver ting, med billedet fra spillet */
+.modal-box.modal-rules {
+  max-width: 900px;
+  padding: 16px 22px;
+}
+
+.rules-title {
+  margin: 0 0 10px;
+  font-size: 26px;
+  color: #4ecca3;
+}
+
+.rules-keys {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 26px;
+  margin-bottom: 14px;
+  font-size: 14px;
+  color: #ccc;
+}
+
+.rules-keys kbd {
+  display: inline-block;
+  min-width: 26px;
+  margin-right: 4px;
+  padding: 3px 8px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: bold;
+  color: #eee;
+  text-align: center;
+  background: #2f2f52;
+  border: 1px solid #4a4a70;
+  border-bottom-width: 3px;
+  border-radius: 6px;
+}
+
+.rules-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.rule-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: #1a1a2e;
+  border-left: 4px solid var(--accent);
+  border-radius: 8px;
+}
+
+.rule-icon {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  margin: 0; /* ellers centrerer den generelle canvas-regel billedet i det ledige rum */
+  background: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.rule-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+  line-height: 1.3;
+  color: #bbb;
+}
+
+.rule-text b {
+  font-size: 14px;
+  color: var(--accent);
+}
+
+.rules-note {
+  margin: 10px 0 0;
+  font-size: 13px;
+  text-align: center;
+  color: #999;
+}
+
+@media (max-width: 760px) {
+  .rules-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .rules-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+#player-name {
+  font-family: inherit;
+  font-size: 15px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: none;
+}
+
+/* Top-listen står i sin egen boks. Med pilene bladrer man mellem listerne */
+.scoreboard {
+  box-sizing: border-box;
+  width: 460px;
+  max-width: 100%;
+  margin: 0 0 12px;
+  padding: 12px 16px;
+  background: #1a1a2e;
+  border: 2px solid #3a3a5c;
+  border-radius: 8px;
+}
+
+.board-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.board-title {
+  margin: 0;
+  color: #4ecca3;
+  text-align: center;
+}
+
+/* Fanerne viser, hvilken side på top-listen man er på: den valgte har grøn baggrund og fed skrift */
+.board-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.board-tab {
+  margin: 0;
+  padding: 5px 12px;
+  font-size: 13px;
+  font-weight: normal;
+  color: #bbb;
+  background: transparent;
+  border: 1px solid #3a3a5c;
+  border-radius: 14px;
+}
+
+.board-tab:hover {
+  background: #2a2a48;
+}
+
+.board-tab.active,
+.board-tab.active:hover {
+  font-weight: bold;
+  color: #1a1a2e;
+  background: #4ecca3;
+  border-color: #4ecca3;
+}
+
+.scoreboard-full .board-tab {
+  padding: 6px 18px;
+  font-size: 15px;
+}
+
+/* Alle poster er lige høje, og listen har en fast højde til fem poster, så boksen ikke skifter størrelse,
+   uanset hvilken side man er på */
+.board-list {
+  box-sizing: content-box;
+  min-height: calc(5 * 52px);
+  margin: 0;
+  padding-left: 24px;
+  text-align: left;
+  font-size: 14px;
+}
+
+.board-list li {
+  box-sizing: border-box;
+  height: 44px;
+  margin: 0 0 8px -8px;
+  padding: 5px 8px;
+  border-left: 4px solid transparent;
+  border-radius: 4px;
+}
+
+/* Det spil man lige har spillet, står med en anden baggrund på listen. Kun farverne ændres, ikke størrelsen */
+.lb-current {
+  background: rgba(78, 204, 163, 0.2);
+  border-left-color: #4ecca3;
+}
+
+.board-more {
+  display: block;
+  margin: 10px auto 0;
+  padding: 6px 14px;
+  font-size: 13px;
+  background: #3a3a5c;
+  color: #eee;
+}
+
+.board-more:hover {
+  background: #4a4a70;
+}
+
+/* Den fulde liste kan scrolles */
+.scoreboard-full {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: none;
+  margin-bottom: 0;
+}
+
+/* Højst ca. 10 poster ses ad gangen, resten rulles op og ned. På lave skærme bliver listen kortere,
+   så der kun er den ene rullebjælke */
+.scoreboard-full .board-list {
+  position: relative; /* så posternes placering regnes fra listen, når den ruller hen til dit spil */
+  flex: 0 1 590px; /* fast højde på ca. 10 poster, uanset hvor mange der er, så vinduet ikke skifter størrelse */
+  min-height: 0;
+  overflow-y: auto;
+  padding-left: 62px; /* plads til tre cifre og punktum (100.), ellers skæres tallene over */
+  padding-right: 10px;
+  font-size: 18px;
+}
+
+.scoreboard-full .board-list li {
+  height: 52px;
+  margin: 0 0 8px -8px;
+}
+
+/* Den fulde liste har større skrift end de korte lister */
+.scoreboard-full {
+  padding: 18px 24px;
+}
+
+.scoreboard-full .board-title {
+  font-size: 26px;
+}
+
+/* I den fulde liste er skriften større */
+.scoreboard-full .lb-name {
+  font-size: 20px;
+}
+
+.scoreboard-full .lb-main {
+  font-size: 20px;
+}
+
+.scoreboard-full .lb-sub {
+  font-size: 15px;
+}
+
+.scoreboard-full .board-filter {
+  padding: 10px 14px;
+  font-size: 17px;
+}
+
+.board-filter {
+  box-sizing: border-box;
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: 14px;
+  color: #eee;
+  background: #22223b;
+  border: 1px solid #3a3a5c;
+  border-radius: 6px;
+}
+
+.final-stats {
+  white-space: pre-line; /* de to linjer med tal står under hinanden */
+  margin-top: -6px;
+  font-size: 14px;
+  color: #bbb;
+}
+
+.highscore {
+  color: #4ecca3;
+  font-weight: bold;
+}
+
+#gameover-screen {
+  background: #22223b;
+  padding: 24px 30px;
+  border-radius: 10px;
+  border: 3px solid #e94560;
+}
+
+#gameover-screen h2 {
+  color: #e94560;
+}

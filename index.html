@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Snake</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Lyd til/fra: altid synlig i hjørnet -->
+  <button id="sound-btn" class="sound-btn" aria-label="Lyd til eller fra">🔊</button>
+
+
+  <div class="game-container">
+    <h1 id="game-title">🐍 Snake!</h1>
+
+    <!-- Startmenu -->
+    <div id="menu-screen" class="screen">
+      <div class="scoreboard">
+        <div class="board-nav">
+          <h3 class="board-title">Flest point</h3>
+        </div>
+        <div class="board-tabs"></div>
+        <ol class="board-list"></ol>
+        <button class="board-more" data-open="scoreboard-modal">Se top 100</button>
+      </div>
+
+      <div class="option-row name-row">
+        <span class="option-title">Navn</span>
+        <input type="text" id="player-name" maxlength="12" placeholder="Skriv dit navn">
+      </div>
+
+      <!-- Én markering pr. række: flueben i samme række fjerner de andre -->
+      <div class="option-row" data-group="snake-type">
+        <span class="option-title">Slange</span>
+        <label><input type="checkbox" value="original" checked>Original</label>
+        <label><input type="checkbox" value="tiger">Tiger</label>
+        <label><input type="checkbox" value="sandorm">Sandorm</label>
+      </div>
+
+      <div class="option-row" data-group="snake-gender">
+        <span class="option-title">Køn</span>
+        <label><input type="checkbox" value="male" checked>Han</label>
+        <label><input type="checkbox" value="female">Hun</label>
+      </div>
+
+      <div class="option-row" data-group="board-theme">
+        <span class="option-title">Baggrund</span>
+        <label><input type="checkbox" value="dark" checked>Mørk</label>
+        <label><input type="checkbox" value="forest">Skov</label>
+        <label><input type="checkbox" value="beach">Strand</label>
+      </div>
+
+
+      <div id="settings-modal" class="modal hidden">
+      <div class="modal-box">
+      <h3>Sværhed og power-ups</h3>
+      <div class="option-row" data-group="difficulty">
+        <span class="option-title">Sværhed</span>
+        <label><input type="checkbox" value="none">Ingen</label>
+        <label><input type="checkbox" value="normal" checked>Normal</label>
+        <label><input type="checkbox" value="hard">Svær</label>
+      </div>
+      <div class="option-row" data-group="powerups-mode">
+        <span class="option-title">Power-ups</span>
+        <label><input type="checkbox" value="on" checked>Til</label>
+        <label><input type="checkbox" value="off">Fra</label>
+      </div>
+      <div class="option-row">
+        <span class="option-title">Mure</span>
+        <label><input type="checkbox" id="walls-toggle">Med mure</label>
+      </div>
+      <button data-close="settings-modal">Luk</button>
+      </div>
+      </div>
+
+      <div id="rules-modal" class="modal hidden">
+        <div class="modal-box modal-rules">
+          <h3 class="rules-title">Regler</h3>
+
+          <div class="rules-keys">
+            <span><kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> styrer</span>
+            <span><kbd>Mellemrum</kbd> pause</span>
+            <span><kbd>M</kbd> lyd</span>
+          </div>
+
+          <div class="rules-grid">
+            <div class="rule-card" style="--accent: #ffd60a">
+              <canvas class="rule-icon" data-sprite="star" width="40" height="40"></canvas>
+              <div class="rule-text"><b>Stjerne</b><span>Spis fuglene i 6 sekunder</span></div>
+            </div>
+            <div class="rule-card" style="--accent: #4cc9f0">
+              <canvas class="rule-icon" data-sprite="shield" width="40" height="40"></canvas>
+              <div class="rule-text"><b>Skjold</b><span>Beskytter mod væg og fugle. Kør over dig selv: 1 skjold pr. felt</span></div>
+            </div>
+            <div class="rule-card" style="--accent: #9b5de5">
+              <canvas class="rule-icon" data-sprite="slow" width="40" height="40"></canvas>
+              <div class="rule-text"><b>Ur</b><span>Sænker din fart for altid, men æblet giver færre point</span></div>
+            </div>
+            <div class="rule-card" style="--accent: #2ec4b6">
+              <canvas class="rule-icon" data-sprite="buff" width="40" height="40"></canvas>
+              <div class="rule-text"><b>Forstærker</b><span>Special frugter, stjerne, dobbelt point og combo varer længere</span></div>
+            </div>
+            <div class="rule-card" style="--accent: #f72585">
+              <canvas class="rule-icon" data-sprite="shrink" width="40" height="40"></canvas>
+              <div class="rule-text"><b>Kort</b><span>Slangen bliver 4 led kortere</span></div>
+            </div>
+            <div class="rule-card" style="--accent: #ff9f1c">
+              <canvas class="rule-icon" data-sprite="double" width="40" height="40"></canvas>
+              <div class="rule-text"><b>Dobbelt</b><span>Dobbelt point i 8 sekunder</span></div>
+            </div>
+            <div class="rule-card" style="--accent: #b5c94b">
+              <canvas class="rule-icon" data-sprite="pear" width="40" height="40"></canvas>
+              <div class="rule-text"><b>Pære, mango, vandmelon</b><span>1,1 til 2 gange æblets point. Hurtigst giver mest</span></div>
+            </div>
+            <div class="rule-card" style="--accent: #e94560">
+              <canvas class="rule-icon" data-sprite="bird" width="40" height="40"></canvas>
+              <div class="rule-text"><b>Fugle</b><span>Undgå dem, medmindre du har stjernen. Giver 2 gange æblets point</span></div>
+            </div>
+            <div class="rule-card" style="--accent: #4ecca3">
+              <canvas class="rule-icon" data-sprite="combo" width="40" height="40"></canvas>
+              <div class="rule-text"><b>Combo</b><span>Spis i træk for x2, x3 og x4. Tallet blinker, før den løber ud</span></div>
+            </div>
+          </div>
+
+          <p class="rules-note">Power-ups kan stacke og giver ingen point.</p>
+          <button id="rules-close" data-close="rules-modal">Luk</button>
+        </div>
+      </div>
+
+      <div class="menu-actions">
+        <button id="settings-btn" data-open="settings-modal">Indstillinger</button>
+        <button id="rules-btn" data-open="rules-modal">Regler</button>
+        <button id="start-btn">Start spil</button>
+      </div>
+    </div>
+
+    <!-- Spil -->
+    <div id="game-screen" class="screen hidden">
+      <div class="hud">
+        <span>Point: <span id="score">0</span></span>
+        <span>Combo: x<span id="combo">1</span></span>
+        <span>Næste frugt: <span id="next-points">10</span> point</span>
+      </div>
+      <div id="combo-meter" class="combo-meter invisible">
+        <span id="combo-label">Combo</span>
+      </div>
+      <div id="status-row" class="status-row"></div>
+      <div id="bonus-panel" class="bonus-panel"></div>
+      <canvas id="game-canvas" width="400" height="400"></canvas>
+      <p class="hint">Brug piletasterne til at styre slangen. Tryk <kbd>Mellemrum</kbd> for pause.</p>
+    </div>
+
+    <!-- Game over -->
+    <div id="gameover-screen" class="screen hidden">
+      <h2>Game Over</h2>
+      <p>Du fik <span id="final-score">0</span> point og <span id="final-fruits">0</span> frugter</p>
+      <p id="final-stats" class="final-stats"></p>
+      <div class="scoreboard">
+        <div class="board-nav">
+          <h3 class="board-title">Flest point</h3>
+        </div>
+        <div class="board-tabs"></div>
+        <ol class="board-list"></ol>
+        <button class="board-more" data-open="scoreboard-modal">Se top 100</button>
+      </div>
+      <button id="restart-btn">Spil igen</button>
+      <button id="menu-btn">Tilbage til menu</button>
+    </div>
+  </div>
+
+<!-- Den fulde top 100-liste. Ligger udenfor skærmene, så den kan åbnes både fra menuen og game over -->
+<div id="scoreboard-modal" class="modal hidden">
+  <div class="modal-box modal-wide">
+    <div class="scoreboard scoreboard-full" data-limit="100">
+      <div class="board-nav">
+        <h3 class="board-title">Flest point</h3>
+      </div>
+      <div class="board-tabs"></div>
+      <input type="search" class="board-filter" placeholder="Søg på navn" maxlength="12" aria-label="Søg på navn">
+      <ol class="board-list"></ol>
+    </div>
+    <button data-close="scoreboard-modal">Luk</button>
+  </div>
+</div>
+
+<!-- Fyrværkeri: dækker hele siden, ligger øverst og tager ikke imod klik -->
+<canvas id="fireworks" class="fireworks"></canvas>
+
+<script src="config.js"></script>
+<script src="sound.js"></script>
+<script src="effects.js"></script>
+<script src="score.js"></script>
+<script src="scoreboard.js"></script>
+<script src="snake.js"></script>
+<script src="birds.js"></script>
+<script src="powerups.js"></script>
+<script src="sprites.js"></script>
+<script src="renderer.js"></script>
+<script src="hud.js"></script>
+<script src="fireworks.js"></script>
+<script src="menu.js"></script>
+<script src="game.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

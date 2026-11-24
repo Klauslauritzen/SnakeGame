@@ -1,0 +1,3341 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Snake</title>
+<style>
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at top, #22223b, #1a1a2e 70%);
+  color: #eee;
+  font-family: "Courier New", monospace;
+}
+
+.game-container {
+  text-align: center;
+  padding: 20px;
+}
+
+h1 {
+  margin-bottom: 10px;
+  letter-spacing: 2px;
+}
+
+/* !important så ID-regler som #menu-screen ikke overstyrer skjul-klassen */
+.screen.hidden {
+  display: none !important;
+}
+
+/* Panelet over banen: en lille boks pr. special frugt eller power-up på banen */
+.bonus-panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 400px;
+  max-width: 100%;
+  min-height: 40px;
+  margin: 0 auto 10px;
+}
+
+.bonus-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.bonus-icon {
+  width: 32px;
+  height: 32px;
+  background: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.bonus-info {
+  display: flex;
+  flex-direction: column;
+  width: 80px;
+  font-size: 13px;
+}
+
+.bonus-bar {
+  height: 8px;
+  margin-top: 4px;
+  background: #22223b;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.bonus-bar-fill {
+  height: 100%;
+  background: #f4a261;
+}
+
+/* under spillet vises kun banen, ikke sidens overskrift */
+body.in-game h1 {
+  display: none;
+}
+
+/* Indstillinger står i faste kolonner, så rækkerne flugter med hinanden */
+.option-row {
+  display: grid;
+  grid-template-columns: 110px 1fr 1fr 1fr;
+  align-items: center;
+  width: 460px;
+  max-width: 100%;
+  margin: 10px 0;
+  text-align: left;
+}
+
+.option-title {
+  font-weight: bold;
+}
+
+.option-row label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.option-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+}
+
+.name-row {
+  grid-template-columns: 110px 1fr;
+}
+
+.name-row input {
+  width: 100%;
+}
+
+#menu-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #22223b;
+  padding: 24px 30px;
+  border-radius: 10px;
+  border: 3px solid #4ecca3;
+}
+
+select, button {
+  font-family: inherit;
+  font-size: 15px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+}
+
+input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+}
+
+button {
+  background: #4ecca3;
+  color: #1a1a2e;
+  font-weight: bold;
+  padding: 10px 20px;
+  margin: 6px;
+}
+
+button:hover {
+  background: #3bb08f;
+}
+
+.hud {
+  display: flex;
+  justify-content: space-between;
+  width: 400px;
+  margin: 0 auto 10px;
+  font-size: 16px;
+}
+
+canvas {
+  background: #0f0f1a;
+  border: 3px solid #4ecca3;
+  border-radius: 6px;
+  box-shadow: 0 0 24px rgba(78, 204, 163, 0.25);
+  display: block;
+  margin: 0 auto;
+}
+
+.hint {
+  margin-top: 10px;
+  font-size: 13px;
+  color: #aaa;
+}
+
+/* Regler-pop-up */
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.modal.hidden {
+  display: none;
+}
+
+.modal-box {
+  width: 100%;
+  max-width: 460px;
+  max-height: 85vh;
+  overflow-y: auto;
+  padding: 20px 24px;
+  text-align: left;
+  background: #22223b;
+  border: 3px solid #4ecca3;
+  border-radius: 10px;
+}
+
+/* Top 100-vinduet er bredere, så navn, point og tal kan stå på færre linjer.
+   Selve vinduet ruller ikke: kun listen indeni gør, så der aldrig er to rullebjælker */
+.modal-box.modal-wide {
+  display: flex;
+  flex-direction: column;
+  max-width: 820px;
+  max-height: 92vh;
+  overflow: hidden;
+}
+
+.modal-box.modal-wide > .scoreboard-full {
+  flex: 0 1 auto;
+  min-height: 0;
+}
+
+.modal-box.modal-wide > button {
+  flex: none;
+}
+
+.modal-box > h3 {
+  text-align: center;
+}
+
+.modal-box > button {
+  display: block;
+  margin: 12px auto 0;
+}
+
+/* Øverste linje i en post: navn til venstre, og point, frugter og længste combo til højre.
+   Alt står på én linje med fast højde, så intet rykker sig, når man skifter side. Et langt navn forkortes med ... */
+.lb-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.lb-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-weight: bold;
+  font-size: 15px;
+}
+
+.lb-main {
+  flex: none;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: bold;
+  color: #4ecca3;
+}
+
+/* Det tal, listen er sorteret efter, fremhæves lidt: lys skrift og en grøn baggrund bag.
+   Baggrunden ligger bag teksten (en skygge uden for den), så den ikke fylder og får noget til at rykke */
+.lb-hot {
+  color: #fff;
+  background: rgba(78, 204, 163, 0.32);
+  box-shadow: 0 0 0 3px rgba(78, 204, 163, 0.32);
+  border-radius: 3px;
+}
+
+/* Resten af tallene */
+.lb-sub {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  color: #bbb;
+}
+
+/* Combo-tallet over banen: viser hvor høj ens combo er. Blinker de sidste 3 sekunder, før den løber ud */
+.combo-meter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 400px;
+  max-width: 100%;
+  height: 26px;
+  margin: 0 auto 6px;
+  font-size: 16px;
+  font-weight: bold;
+  color: #4ecca3;
+}
+
+.combo-meter.invisible {
+  visibility: hidden;
+}
+
+.combo-meter.blinking {
+  color: #ff9f1c;
+  animation: combo-blink 0.5s steps(1, end) infinite;
+}
+
+@keyframes combo-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}
+
+/* Rækken over banen med aktive power-ups */
+.status-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  width: 400px;
+  max-width: 100%;
+  min-height: 26px;
+  margin: 0 auto 6px;
+  font-size: 13px;
+  font-weight: bold;
+}
+
+.status-chip {
+  padding: 2px 10px;
+  border: 1px solid currentColor;
+  border-radius: 12px;
+  background: #22223b;
+}
+
+/* Knapperne nederst i menuen: Indstillinger og Regler står på linje ovenfor,
+   og Start spil er nederst og størst på hele bredden */
+.menu-actions {
+  width: 460px;
+  max-width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: stretch;
+  gap: 8px;
+  margin-top: 24px;
+}
+
+.menu-actions button {
+  flex: 1 1 0;
+  min-width: 0;
+  margin: 0;
+  padding: 10px 8px;
+  font-size: 14px;
+}
+
+.menu-actions #start-btn {
+  flex: 1 1 100%;
+  padding: 14px 20px;
+  font-size: 18px;
+}
+
+.menu-actions #settings-btn,
+.menu-actions #rules-btn {
+  background: #3a3a5c;
+  color: #eee;
+}
+
+.menu-actions #settings-btn:hover,
+.menu-actions #rules-btn:hover {
+  background: #4a4a70;
+}
+
+/* Fyrværkeri over hele siden, også hen over teksten og pop-ups. Det tager ikke imod klik og er skjult, når der ikke er noget */
+canvas.fireworks {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: none;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  background: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  pointer-events: none;
+}
+
+canvas.fireworks.active {
+  display: block;
+}
+
+/* Lyd-ikon i hjørnet, altid synligt */
+.sound-btn {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 5;
+  width: 40px;
+  height: 40px;
+  margin: 0;
+  padding: 0;
+  font-size: 18px;
+  border-radius: 50%;
+}
+
+/* Regelbogen: taster øverst og så et kort for hver ting, med billedet fra spillet */
+.modal-box.modal-rules {
+  max-width: 900px;
+  padding: 16px 22px;
+}
+
+.rules-title {
+  margin: 0 0 10px;
+  font-size: 26px;
+  color: #4ecca3;
+}
+
+.rules-keys {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 26px;
+  margin-bottom: 14px;
+  font-size: 14px;
+  color: #ccc;
+}
+
+.rules-keys kbd {
+  display: inline-block;
+  min-width: 26px;
+  margin-right: 4px;
+  padding: 3px 8px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: bold;
+  color: #eee;
+  text-align: center;
+  background: #2f2f52;
+  border: 1px solid #4a4a70;
+  border-bottom-width: 3px;
+  border-radius: 6px;
+}
+
+.rules-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.rule-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: #1a1a2e;
+  border-left: 4px solid var(--accent);
+  border-radius: 8px;
+}
+
+.rule-icon {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  margin: 0; /* ellers centrerer den generelle canvas-regel billedet i det ledige rum */
+  background: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.rule-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+  line-height: 1.3;
+  color: #bbb;
+}
+
+.rule-text b {
+  font-size: 14px;
+  color: var(--accent);
+}
+
+.rules-note {
+  margin: 10px 0 0;
+  font-size: 13px;
+  text-align: center;
+  color: #999;
+}
+
+@media (max-width: 760px) {
+  .rules-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .rules-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+#player-name {
+  font-family: inherit;
+  font-size: 15px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: none;
+}
+
+/* Top-listen står i sin egen boks. Med pilene bladrer man mellem listerne */
+.scoreboard {
+  box-sizing: border-box;
+  width: 460px;
+  max-width: 100%;
+  margin: 0 0 12px;
+  padding: 12px 16px;
+  background: #1a1a2e;
+  border: 2px solid #3a3a5c;
+  border-radius: 8px;
+}
+
+.board-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.board-title {
+  margin: 0;
+  color: #4ecca3;
+  text-align: center;
+}
+
+/* Fanerne viser, hvilken side på top-listen man er på: den valgte har grøn baggrund og fed skrift */
+.board-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.board-tab {
+  margin: 0;
+  padding: 5px 12px;
+  font-size: 13px;
+  font-weight: normal;
+  color: #bbb;
+  background: transparent;
+  border: 1px solid #3a3a5c;
+  border-radius: 14px;
+}
+
+.board-tab:hover {
+  background: #2a2a48;
+}
+
+.board-tab.active,
+.board-tab.active:hover {
+  font-weight: bold;
+  color: #1a1a2e;
+  background: #4ecca3;
+  border-color: #4ecca3;
+}
+
+.scoreboard-full .board-tab {
+  padding: 6px 18px;
+  font-size: 15px;
+}
+
+/* Alle poster er lige høje, og listen har en fast højde til fem poster, så boksen ikke skifter størrelse,
+   uanset hvilken side man er på */
+.board-list {
+  box-sizing: content-box;
+  min-height: calc(5 * 52px);
+  margin: 0;
+  padding-left: 24px;
+  text-align: left;
+  font-size: 14px;
+}
+
+.board-list li {
+  box-sizing: border-box;
+  height: 44px;
+  margin: 0 0 8px -8px;
+  padding: 5px 8px;
+  border-left: 4px solid transparent;
+  border-radius: 4px;
+}
+
+/* Det spil man lige har spillet, står med en anden baggrund på listen. Kun farverne ændres, ikke størrelsen */
+.lb-current {
+  background: rgba(78, 204, 163, 0.2);
+  border-left-color: #4ecca3;
+}
+
+.board-more {
+  display: block;
+  margin: 10px auto 0;
+  padding: 6px 14px;
+  font-size: 13px;
+  background: #3a3a5c;
+  color: #eee;
+}
+
+.board-more:hover {
+  background: #4a4a70;
+}
+
+/* Den fulde liste kan scrolles */
+.scoreboard-full {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: none;
+  margin-bottom: 0;
+}
+
+/* Højst ca. 10 poster ses ad gangen, resten rulles op og ned. På lave skærme bliver listen kortere,
+   så der kun er den ene rullebjælke */
+.scoreboard-full .board-list {
+  position: relative; /* så posternes placering regnes fra listen, når den ruller hen til dit spil */
+  flex: 0 1 590px; /* fast højde på ca. 10 poster, uanset hvor mange der er, så vinduet ikke skifter størrelse */
+  min-height: 0;
+  overflow-y: auto;
+  padding-left: 62px; /* plads til tre cifre og punktum (100.), ellers skæres tallene over */
+  padding-right: 10px;
+  font-size: 18px;
+}
+
+.scoreboard-full .board-list li {
+  height: 52px;
+  margin: 0 0 8px -8px;
+}
+
+/* Den fulde liste har større skrift end de korte lister */
+.scoreboard-full {
+  padding: 18px 24px;
+}
+
+.scoreboard-full .board-title {
+  font-size: 26px;
+}
+
+/* I den fulde liste er skriften større */
+.scoreboard-full .lb-name {
+  font-size: 20px;
+}
+
+.scoreboard-full .lb-main {
+  font-size: 20px;
+}
+
+.scoreboard-full .lb-sub {
+  font-size: 15px;
+}
+
+.scoreboard-full .board-filter {
+  padding: 10px 14px;
+  font-size: 17px;
+}
+
+.board-filter {
+  box-sizing: border-box;
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: 14px;
+  color: #eee;
+  background: #22223b;
+  border: 1px solid #3a3a5c;
+  border-radius: 6px;
+}
+
+.final-stats {
+  white-space: pre-line; /* de to linjer med tal står under hinanden */
+  margin-top: -6px;
+  font-size: 14px;
+  color: #bbb;
+}
+
+.highscore {
+  color: #4ecca3;
+  font-weight: bold;
+}
+
+#gameover-screen {
+  background: #22223b;
+  padding: 24px 30px;
+  border-radius: 10px;
+  border: 3px solid #e94560;
+}
+
+#gameover-screen h2 {
+  color: #e94560;
+}
+
+</style>
+</head>
+<body>
+  <!-- Lyd til/fra: altid synlig i hjørnet -->
+  <button id="sound-btn" class="sound-btn" aria-label="Lyd til eller fra">🔊</button>
+
+
+  <div class="game-container">
+    <h1 id="game-title">🐍 Snake!</h1>
+
+    <!-- Startmenu -->
+    <div id="menu-screen" class="screen">
+      <div class="scoreboard">
+        <div class="board-nav">
+          <h3 class="board-title">Flest point</h3>
+        </div>
+        <div class="board-tabs"></div>
+        <ol class="board-list"></ol>
+        <button class="board-more" data-open="scoreboard-modal">Se top 100</button>
+      </div>
+
+      <div class="option-row name-row">
+        <span class="option-title">Navn</span>
+        <input type="text" id="player-name" maxlength="12" placeholder="Skriv dit navn">
+      </div>
+
+      <!-- Én markering pr. række: flueben i samme række fjerner de andre -->
+      <div class="option-row" data-group="snake-type">
+        <span class="option-title">Slange</span>
+        <label><input type="checkbox" value="original" checked>Original</label>
+        <label><input type="checkbox" value="tiger">Tiger</label>
+        <label><input type="checkbox" value="sandorm">Sandorm</label>
+      </div>
+
+      <div class="option-row" data-group="snake-gender">
+        <span class="option-title">Køn</span>
+        <label><input type="checkbox" value="male" checked>Han</label>
+        <label><input type="checkbox" value="female">Hun</label>
+      </div>
+
+      <div class="option-row" data-group="board-theme">
+        <span class="option-title">Baggrund</span>
+        <label><input type="checkbox" value="dark" checked>Mørk</label>
+        <label><input type="checkbox" value="forest">Skov</label>
+        <label><input type="checkbox" value="beach">Strand</label>
+      </div>
+
+
+      <div id="settings-modal" class="modal hidden">
+      <div class="modal-box">
+      <h3>Sværhed og power-ups</h3>
+      <div class="option-row" data-group="difficulty">
+        <span class="option-title">Sværhed</span>
+        <label><input type="checkbox" value="none">Ingen</label>
+        <label><input type="checkbox" value="normal" checked>Normal</label>
+        <label><input type="checkbox" value="hard">Svær</label>
+      </div>
+      <div class="option-row" data-group="powerups-mode">
+        <span class="option-title">Power-ups</span>
+        <label><input type="checkbox" value="on" checked>Til</label>
+        <label><input type="checkbox" value="off">Fra</label>
+      </div>
+      <div class="option-row">
+        <span class="option-title">Mure</span>
+        <label><input type="checkbox" id="walls-toggle">Med mure</label>
+      </div>
+      <button data-close="settings-modal">Luk</button>
+      </div>
+      </div>
+
+      <div id="rules-modal" class="modal hidden">
+        <div class="modal-box modal-rules">
+          <h3 class="rules-title">Regler</h3>
+
+          <div class="rules-keys">
+            <span><kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> styrer</span>
+            <span><kbd>Mellemrum</kbd> pause</span>
+            <span><kbd>M</kbd> lyd</span>
+          </div>
+
+          <div class="rules-grid">
+            <div class="rule-card" style="--accent: #ffd60a">
+              <canvas class="rule-icon" data-sprite="star" width="40" height="40"></canvas>
+              <div class="rule-text"><b>Stjerne</b><span>Spis fuglene i 6 sekunder</span></div>
+            </div>
+            <div class="rule-card" style="--accent: #4cc9f0">
+              <canvas class="rule-icon" data-sprite="shield" width="40" height="40"></canvas>
+              <div class="rule-text"><b>Skjold</b><span>Beskytter mod væg og fugle. Kør over dig selv: 1 skjold pr. felt</span></div>
+            </div>
+            <div class="rule-card" style="--accent: #9b5de5">
+              <canvas class="rule-icon" data-sprite="slow" width="40" height="40"></canvas>
+              <div class="rule-text"><b>Ur</b><span>Sænker din fart for altid, men æblet giver færre point</span></div>
+            </div>
+            <div class="rule-card" style="--accent: #2ec4b6">
+              <canvas class="rule-icon" data-sprite="buff" width="40" height="40"></canvas>
+              <div class="rule-text"><b>Forstærker</b><span>Special frugter, stjerne, dobbelt point og combo varer længere</span></div>
+            </div>
+            <div class="rule-card" style="--accent: #f72585">
+              <canvas class="rule-icon" data-sprite="shrink" width="40" height="40"></canvas>
+              <div class="rule-text"><b>Kort</b><span>Slangen bliver 4 led kortere</span></div>
+            </div>
+            <div class="rule-card" style="--accent: #ff9f1c">
+              <canvas class="rule-icon" data-sprite="double" width="40" height="40"></canvas>
+              <div class="rule-text"><b>Dobbelt</b><span>Dobbelt point i 8 sekunder</span></div>
+            </div>
+            <div class="rule-card" style="--accent: #b5c94b">
+              <canvas class="rule-icon" data-sprite="pear" width="40" height="40"></canvas>
+              <div class="rule-text"><b>Pære, mango, vandmelon</b><span>1,1 til 2 gange æblets point. Hurtigst giver mest</span></div>
+            </div>
+            <div class="rule-card" style="--accent: #e94560">
+              <canvas class="rule-icon" data-sprite="bird" width="40" height="40"></canvas>
+              <div class="rule-text"><b>Fugle</b><span>Undgå dem, medmindre du har stjernen. Giver 2 gange æblets point</span></div>
+            </div>
+            <div class="rule-card" style="--accent: #4ecca3">
+              <canvas class="rule-icon" data-sprite="combo" width="40" height="40"></canvas>
+              <div class="rule-text"><b>Combo</b><span>Spis i træk for x2, x3 og x4. Tallet blinker, før den løber ud</span></div>
+            </div>
+          </div>
+
+          <p class="rules-note">Power-ups kan stacke og giver ingen point.</p>
+          <button id="rules-close" data-close="rules-modal">Luk</button>
+        </div>
+      </div>
+
+      <div class="menu-actions">
+        <button id="settings-btn" data-open="settings-modal">Indstillinger</button>
+        <button id="rules-btn" data-open="rules-modal">Regler</button>
+        <button id="start-btn">Start spil</button>
+      </div>
+    </div>
+
+    <!-- Spil -->
+    <div id="game-screen" class="screen hidden">
+      <div class="hud">
+        <span>Point: <span id="score">0</span></span>
+        <span>Combo: x<span id="combo">1</span></span>
+        <span>Næste frugt: <span id="next-points">10</span> point</span>
+      </div>
+      <div id="combo-meter" class="combo-meter invisible">
+        <span id="combo-label">Combo</span>
+      </div>
+      <div id="status-row" class="status-row"></div>
+      <div id="bonus-panel" class="bonus-panel"></div>
+      <canvas id="game-canvas" width="400" height="400"></canvas>
+      <p class="hint">Brug piletasterne til at styre slangen. Tryk <kbd>Mellemrum</kbd> for pause.</p>
+    </div>
+
+    <!-- Game over -->
+    <div id="gameover-screen" class="screen hidden">
+      <h2>Game Over</h2>
+      <p>Du fik <span id="final-score">0</span> point og <span id="final-fruits">0</span> frugter</p>
+      <p id="final-stats" class="final-stats"></p>
+      <div class="scoreboard">
+        <div class="board-nav">
+          <h3 class="board-title">Flest point</h3>
+        </div>
+        <div class="board-tabs"></div>
+        <ol class="board-list"></ol>
+        <button class="board-more" data-open="scoreboard-modal">Se top 100</button>
+      </div>
+      <button id="restart-btn">Spil igen</button>
+      <button id="menu-btn">Tilbage til menu</button>
+    </div>
+  </div>
+
+<!-- Den fulde top 100-liste. Ligger udenfor skærmene, så den kan åbnes både fra menuen og game over -->
+<div id="scoreboard-modal" class="modal hidden">
+  <div class="modal-box modal-wide">
+    <div class="scoreboard scoreboard-full" data-limit="100">
+      <div class="board-nav">
+        <h3 class="board-title">Flest point</h3>
+      </div>
+      <div class="board-tabs"></div>
+      <input type="search" class="board-filter" placeholder="Søg på navn" maxlength="12" aria-label="Søg på navn">
+      <ol class="board-list"></ol>
+    </div>
+    <button data-close="scoreboard-modal">Luk</button>
+  </div>
+</div>
+
+<!-- Fyrværkeri: dækker hele siden, ligger øverst og tager ikke imod klik -->
+<canvas id="fireworks" class="fireworks"></canvas>
+
+<script>
+// ---- Konstanter for hele spillet ----
+
+// Bane
+const GRID_SIZE = 20;          // antal celler pr. side
+const CANVAS_SIZE = 400;       // pixels
+const CELL = CANVAS_SIZE / GRID_SIZE;
+
+// Point, combo og rekord
+const BASE_POINTS = 10;        // point for første æble
+const POINTS_INCREMENT = 2;    // ekstra point pr. æble man har fanget
+const COMBO_WINDOW = 4000;     // ms man har til næste frugt for at holde combo'en
+const COMBO_BUFF_BONUS = 1000; // ms mere tid til combo'en pr. forstærker man har
+const COMBO_BLINK_MS = 3000;   // combo-måleren blinker, når der er så lidt tid tilbage
+const MAX_MULTIPLIER = 4;      // højeste combo-multiplikator
+const SCOREBOARD_KEY = "snake-scoreboard";
+const SCOREBOARD_SIZE = 5;     // antal navne på den korte top-liste
+const SCOREBOARD_MAX = 100;    // antal spil der gemmes pr. liste og kan ses i den fulde liste
+const OLD_HIGH_SCORE_KEY = "snake-highscore"; // kun til at flytte en gammel enkelt rekord over
+
+// Special frugter (power-ups)
+const BONUS_CHANCE = 0.25;     // sandsynlighed for at en special frugt kommer med et nyt æble (efter introduktionen)
+// Introduktion i starten af et spil, så man bliver vænnet til special frugter og power-ups:
+// intet før 2. æble, så altid en special frugt, og så en power-up efter 4., 5. eller 6. æble
+const INTRO_FRUIT_APPLE = 2;   // den garanterede special frugt kommer efter dette æble
+const INTRO_POWERUP_APPLES = [ // den garanterede power-up kommer efter et af disse æbler, med disse chancer
+  { apple: 4, chance: 0.4 },
+  { apple: 5, chance: 0.4 },
+  { apple: 6, chance: 0.2 },
+];
+const BONUS_LIFETIME = 6000;   // ms før en special frugt forsvinder
+const BONUS_MIN_FACTOR = 1.1;  // special frugt giver mindst så mange gange æblets point (når den er ved at forsvinde)
+const BONUS_MAX_FACTOR = 2;    // og højst så mange (når den lige er dukket op)
+const STAR_CHANCE = 0.10;     // sandsynlighed for at special frugten er den gyldne stjerne
+const SHIELD_CHANCE = 0.10;   // sandsynlighed for at special frugten er et skjold
+const SLOW_CHANCE = 0.10;     // sandsynlighed for at special frugten er det langsomme ur
+const SHRINK_CHANCE = 0.10;   // sandsynlighed for at special frugten gør slangen kortere
+const DOUBLE_CHANCE = 0.10;    // sandsynlighed for at special frugten giver dobbelt point
+const BUFF_CHANCE = 0.10;      // sandsynlighed for at special frugten er forstærkeren
+const DOUBLE_DURATION = 8000;  // ms dobbelt point varer
+const BUFF_MAX_LEVEL = 3;      // en forstærker varer resten af spillet. Hver giver special frugt, stjerne og dobbelt point 1 gang mere tid, op til dette antal
+const SHIELD_FLASH_MS = 800;   // ms skjoldet blinker, når det er brugt
+const STAR_DURATION = 6000;    // ms man kan spise fuglene efter en stjernefrugt
+const SLOW_STEPS = 3;         // hvert langsomt ur sænker farten for altid så mange trin (et trin = det hop farten tager hver 5. frugt)
+const SLOW_POINT_STAGES = 2;   // og sætter æblets point så mange trin tilbage pr. ur
+const MAX_TICK_DELAY = 220;    // langsomste tilladte tick-tid i ms, uanset hvor mange ure man tager
+const MAX_SHIELDS = 9;         // højst så mange skjolde man kan have
+const SHRINK_AMOUNT = 4;       // så mange led slangen mister med den korte-power-up
+const MIN_SNAKE_LENGTH = 3;    // slangen bliver aldrig kortere end dette
+const BONUS_FRUITS = {
+  pear: { color: "#b5c94b" },
+  mango: { color: "#ffb703" },
+  watermelon: { color: "#e63946" },
+  star: { color: "#ffd60a" },
+  shield: { color: "#4cc9f0" },
+  slow: { color: "#9b5de5" },
+  shrink: { color: "#f72585" },
+  double: { color: "#ff9f1c" },
+  buff: { color: "#2ec4b6" },
+};
+// Power-ups giver en effekt i stedet for point. Teksten vises i panelet over banen
+const POWERUP_TYPES = ["star", "shield", "slow", "shrink", "double", "buff"];
+const POWERUP_LABELS = {
+  star: "Stjerne",
+  shield: "Skjold",
+  slow: "Langsom",
+  shrink: "Kortere",
+  double: "Dobbelt",
+  buff: "Forstærk",
+};
+const APPLE_COLOR = "#d62828";
+
+// Fart
+const START_TICK_DELAY = 100;  // starthastighed i ms pr. tick
+const SPEED_STEP_EVERY = 5;    // hver 5. frugt øges hastigheden
+const SPEED_FACTOR = 0.9;      // tick-tiden ganges med denne faktor ved hvert trin
+const MIN_TICK_DELAY = 40;     // hurtigste tilladte tick-tid i ms
+
+// Fugle
+const BIRD_FACTOR = 2;           // en fugl giver så mange gange æblets point
+const BIRD_MIN_LIFETIME = 3000;  // ms en fugl bliver på banen (min)
+const BIRD_MAX_LIFETIME = 10000; // ms en fugl bliver på banen (max)
+const BIRD_MIN_INTERVAL = 4000;  // ms mellem fugle der dukker op (min)
+const BIRD_MAX_INTERVAL = 9000;  // ms mellem fugle der dukker op (max)
+const MAX_BIRDS = 3;             // højst så mange fugle på banen ad gangen
+const BIRD_MIN_DISTANCE = 3;     // en ny fugl dukker op mindst så mange felter fra hovedet (også rundt om kanten)
+const BIRD_COLORS = {
+  red: { body: "#e63946", wing: "#9d0208", beak: "#ffb703" },
+  yellow: { body: "#ffd60a", wing: "#e09f3e", beak: "#f77f00" },
+};
+
+// Retninger: hvordan et skridt flytter hovedet, hvad der er modsat, og hvilke taster der styrer
+const DIR_VECTOR = { RIGHT: [1, 0], LEFT: [-1, 0], UP: [0, -1], DOWN: [0, 1] };
+const OPPOSITE = { UP: "DOWN", DOWN: "UP", LEFT: "RIGHT", RIGHT: "LEFT" };
+const KEY_DIRECTIONS = {
+  ArrowUp: "UP",
+  ArrowDown: "DOWN",
+  ArrowLeft: "LEFT",
+  ArrowRight: "RIGHT",
+};
+
+// Midten af en celle i pixels
+function cellCenterPx(n) {
+  return n * CELL + CELL / 2;
+}
+
+function randomBetween(min, max) {
+  return min + Math.random() * (max - min);
+}
+
+</script>
+<script>
+// ---- Lyd (8-bit style via Web Audio API) ----
+class Sound {
+  constructor() {
+    this.ctx = null; // oprettes først ved det første spil, fordi browsere kræver et klik først
+    this.enabled = true;
+  }
+
+  init() {
+    if (!this.ctx) {
+      this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+  }
+
+  // Slår lyden til eller fra. Returnerer om den nu er til
+  toggle() {
+    this.enabled = !this.enabled;
+    return this.enabled;
+  }
+
+  // Kort tone der glider fra én frekvens til en anden. delay er ventetid i sekunder før den starter
+  sweep(fromHz, toHz, duration, rampTime, delay = 0, type = "square") {
+    if (!this.ctx || !this.enabled) return;
+    const start = this.ctx.currentTime + delay;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = type;
+    osc.frequency.setValueAtTime(fromHz, start);
+    osc.frequency.exponentialRampToValueAtTime(toHz, start + rampTime);
+
+    gain.gain.setValueAtTime(0.15, start);
+    gain.gain.exponentialRampToValueAtTime(0.001, start + duration);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc.start(start);
+    osc.stop(start + duration);
+  }
+
+  eat() {
+    this.sweep(440, 880, 0.1, 0.08);
+  }
+
+  gameOver() {
+    this.sweep(220, 60, 0.4, 0.4);
+  }
+
+  // To korte, lyse toner, så det lyder som en fugl
+  birdChirp() {
+    this.sweep(2200, 3000, 0.08, 0.07, 0, "sine");
+    this.sweep(2600, 3400, 0.1, 0.09, 0.1, "sine");
+  }
+
+  // Combo-tone: stiger en halvtone for hvert combo-trin, så man kan høre hvor langt man er
+  comboNote(combo) {
+    const steps = Math.min(combo - 1, 12);
+    const hz = 523 * Math.pow(2, steps / 12);
+    this.sweep(hz, hz, 0.12, 0.12, 0, "triangle");
+  }
+
+  // Lyd når man går op i multiplikator: en hurtig opadgående arpeggio
+  levelUp() {
+    this.sweep(523, 523, 0.1, 0.1, 0, "triangle");
+    this.sweep(659, 659, 0.1, 0.1, 0.09, "triangle");
+    this.sweep(784, 784, 0.16, 0.16, 0.18, "triangle");
+  }
+
+  // Fanfare når man kommer på top 5: fire toner op
+  fanfare() {
+    [523, 659, 784, 1047].forEach((hz, i) => {
+      this.sweep(hz, hz, i === 3 ? 0.35 : 0.14, i === 3 ? 0.35 : 0.14, i * 0.12, "triangle");
+    });
+  }
+
+  // Et lille knald, når en fyrværkeriraket springer
+  pop() {
+    this.sweep(260, 50, 0.16, 0.14, 0, "sawtooth");
+  }
+
+  // Lyd for combo'en: en arpeggio ved ny multiplikator, ellers en tone der stiger med combo'en
+  comboFeedback(before, mult, combo) {
+    if (mult > before) this.levelUp();
+    else if (combo >= 2) this.comboNote(combo);
+  }
+}
+
+</script>
+<script>
+// ---- Effekter: partikler, flyvende point-tekst og skjoldets blink (logik her, tegning i renderer.js) ----
+class Effects {
+  constructor() {
+    this.reset();
+  }
+
+  reset() {
+    this.particles = [];
+    this.floaters = [];
+    this.shieldFlash = 0; // ms tilbage af skjoldets blink
+  }
+
+  burst(x, y, color, count) {
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 0.02 + Math.random() * 0.05; // px pr. ms
+      const life = 400 + Math.random() * 300;
+      this.particles.push({
+        x,
+        y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        life,
+        maxLife: life,
+        color,
+      });
+    }
+  }
+
+  burstAtCell(cell, color, count) {
+    this.burst(cellCenterPx(cell.x), cellCenterPx(cell.y), color, count);
+  }
+
+  floatText(x, y, text) {
+    this.floaters.push({ x, y, text, life: 900, maxLife: 900 });
+  }
+
+  floatTextAtCell(cell, text) {
+    this.floatText(cellCenterPx(cell.x), cellCenterPx(cell.y), text);
+  }
+
+  flashShield() {
+    this.shieldFlash = SHIELD_FLASH_MS;
+  }
+
+  // dt er tiden siden sidste billede i ms
+  update(dt) {
+    this.particles.forEach(p => {
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.life -= dt;
+    });
+    this.particles = this.particles.filter(p => p.life > 0);
+
+    this.floaters.forEach(f => {
+      f.y -= 0.03 * dt;
+      f.life -= dt;
+    });
+    this.floaters = this.floaters.filter(f => f.life > 0);
+
+    this.shieldFlash = Math.max(0, this.shieldFlash - dt);
+  }
+}
+
+</script>
+<script>
+// ---- Point, combo og statistik for det spil, man er i gang med ----
+class Score {
+  constructor() {
+    this.reset();
+  }
+
+  reset() {
+    this.points = 0;
+    this.fruits = 0;       // æbler og special frugter (pære, mango, vandmelon)
+    this.combo = 0;
+    this.comboTimeLeft = 0;
+    this.comboWindow = COMBO_WINDOW; // hvor lang tid den aktuelle combo har, så måleren kan vise hvor meget der er tilbage
+    this.maxCombo = 0;    // den længste combo (flest frugter i træk) i dette spil
+    // statistik til top-listerne
+    this.birds = 0;        // fugle spist med stjernen
+    this.powerups = 0;     // power-ups taget
+    this.specials = 0;     // special frugter spist (pære, mango, vandmelon)
+    this.playTimeMs = 0;   // spilletid i ms, uden pauser
+  }
+
+  // Point for et æble: stiger med antal fangede frugter. Hvert langsomt ur sætter det SLOW_POINT_STAGES trin tilbage
+  applePoints(slowLevel) {
+    const stage = Math.max(0, this.fruits - SLOW_POINT_STAGES * slowLevel);
+    return BASE_POINTS + stage * POINTS_INCREMENT;
+  }
+
+  // ---- Combo: frugter spist kort efter hinanden giver en multiplikator ----
+  static multiplierFor(n) {
+    return Math.min(MAX_MULTIPLIER, 1 + Math.floor((n - 1) / 3));
+  }
+
+  // Multiplikatoren lige nu
+  get multiplier() {
+    return this.comboTimeLeft > 0 ? Score.multiplierFor(this.combo) : 1;
+  }
+
+  // Multiplikatoren man får, hvis man spiser en frugt lige nu
+  get nextMultiplier() {
+    return this.comboTimeLeft > 0 ? Score.multiplierFor(this.combo + 1) : 1;
+  }
+
+  // Kaldes når en frugt eller fugl spises: returnerer multiplikatoren for den.
+  // window er hvor lang tid man har til den næste (længere med forstærkere)
+  registerCombo(window = COMBO_WINDOW) {
+    this.combo = this.comboTimeLeft > 0 ? this.combo + 1 : 1;
+    this.comboWindow = window;
+    this.comboTimeLeft = window;
+    this.maxCombo = Math.max(this.maxCombo, this.combo);
+    return Score.multiplierFor(this.combo);
+  }
+
+  // Lægger point til (ganget med dobbelt point, hvis det er aktivt). Returnerer det der blev lagt til
+  add(points, pointMultiplier) {
+    const gained = Math.round(points * pointMultiplier);
+    this.points += gained;
+    return gained;
+  }
+
+  // Kaldes én gang pr. tick. step er tick-tiden i ms. Combo'en udløber, og spilletiden tæller op
+  tick(step) {
+    this.comboTimeLeft = Math.max(0, this.comboTimeLeft - step);
+    this.playTimeMs += step;
+  }
+
+  // Tallene fra det spil, man lige har spillet, i det format top-listen bruger
+  stats() {
+    return {
+      score: this.points,
+      fruits: this.fruits,
+      birds: this.birds,
+      powerups: this.powerups,
+      specials: this.specials,
+      combo: this.maxCombo,
+      time: Math.round(this.playTimeMs / 1000),
+    };
+  }
+}
+
+</script>
+<script>
+// ---- Top-lister med navne (gemmes i browserens localStorage) ----
+// Hver post har navn, point, frugter, fugle, power-ups, special frugter, længste combo og tid.
+// Der er fire lister, og man skifter mellem dem ved at klikke på fanerne. Alle viser alle tal.
+// Vi gemmer de poster, der er med i top 100 på mindst én af listerne
+class Scoreboard {
+  constructor() {
+    this.entries = this.load();
+    this.boardIndex = 0;   // hvilken liste der vises lige nu
+    this.lastEntry = null; // det spil man lige har spillet, så det kan fremhæves i listerne
+    this.lastPlacement = null; // dets bedste placering: { boardIndex, rank }, eller null hvis det ikke kom med
+  }
+
+  get board() {
+    return Scoreboard.BOARDS[this.boardIndex];
+  }
+
+  load() {
+    try {
+      const data = JSON.parse(localStorage.getItem(SCOREBOARD_KEY));
+      if (Array.isArray(data)) {
+        // ældre poster mangler nogle tal, så de får 0
+        return data.map(entry => ({
+          name: String(entry.name),
+          score: Number(entry.score) || 0,
+          fruits: Number(entry.fruits) || 0,
+          birds: Number(entry.birds) || 0,
+          powerups: Number(entry.powerups) || 0,
+          specials: Number(entry.specials) || 0,
+          combo: Number(entry.combo) || 0,
+          time: Number(entry.time) || 0,
+        }));
+      }
+      // en gammel enkelt rekord flyttes over, så den ikke går tabt
+      const old = parseInt(localStorage.getItem(OLD_HIGH_SCORE_KEY), 10);
+      return old > 0 ? [{ name: "Ukendt", score: old, fruits: 0, birds: 0, powerups: 0, specials: 0, combo: 0, time: 0 }] : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  save() {
+    try {
+      localStorage.setItem(SCOREBOARD_KEY, JSON.stringify(this.entries));
+    } catch (e) {
+      // localStorage utilgængelig — listerne gælder så kun indtil siden lukkes
+    }
+  }
+
+  // De bedste på en liste. Med nameFilter vises kun spillere, hvis navn indeholder teksten (uden store/små bogstaver)
+  topFor(board, limit = SCOREBOARD_SIZE, nameFilter = "") {
+    const needle = nameFilter.trim().toLowerCase();
+    const pool = needle ? this.entries.filter(e => e.name.toLowerCase().includes(needle)) : this.entries;
+    return [...pool].sort(board.sort).slice(0, limit);
+  }
+
+  // Gemmer et spil. Posten beholdes, hvis den er med i top 100 for point, frugter, tid eller combo.
+  // Bagefter vises den liste, hvor spillet fik den bedste placering. Kom det ikke med i top 100, vises point
+  submit(name, stats) {
+    if (stats.score <= 0 && stats.fruits <= 0 && stats.time <= 0) {
+      this.lastEntry = null;
+      this.lastPlacement = null;
+      this.boardIndex = 0;
+      return;
+    }
+    // tal der mangler, bliver 0, så sorteringen altid virker
+    const entry = { name, score: 0, fruits: 0, birds: 0, powerups: 0, specials: 0, combo: 0, time: 0, ...stats };
+    this.entries.push(entry);
+    this.lastEntry = entry;
+    const keep = new Set(Scoreboard.BOARDS.flatMap(board => this.topFor(board, SCOREBOARD_MAX)));
+    this.entries = this.entries.filter(e => keep.has(e));
+    this.lastPlacement = this.placementOf(entry);
+    this.boardIndex = this.lastPlacement ? this.lastPlacement.boardIndex : 0;
+    this.save();
+  }
+
+  // Placeringen i top 100 på den liste, hvor posten står bedst: { boardIndex, rank }, hvor rank 1 er bedst.
+  // Ved lige placering vinder den første liste, så point kommer før frugter, tid og combo.
+  // Er posten ikke med i top 100 på nogen liste, er svaret null
+  placementOf(entry) {
+    let best = null;
+    Scoreboard.BOARDS.forEach((board, i) => {
+      const index = this.topFor(board, SCOREBOARD_MAX).indexOf(entry);
+      if (index !== -1 && (best === null || index + 1 < best.rank)) {
+        best = { boardIndex: i, rank: index + 1 };
+      }
+    });
+    return best;
+  }
+
+  // Går til en bestemt liste, når man klikker på dens fane
+  setBoard(index) {
+    if (index >= 0 && index < Scoreboard.BOARDS.length) this.boardIndex = index;
+  }
+
+  // Nyt spil: intet er "det seneste spil" endnu
+  clearLast() {
+    this.lastEntry = null;
+    this.lastPlacement = null;
+  }
+}
+
+// title er overskriften på listen, tab er teksten på fanen, og stat er det tal, listen er sorteret efter
+// (det bliver fremhævet i hver post)
+Scoreboard.BOARDS = [
+  { title: "Flest point", tab: "Point", stat: "score", sort: (a, b) => b.score - a.score || b.fruits - a.fruits },
+  { title: "Flest frugter", tab: "Frugter", stat: "fruits", sort: (a, b) => b.fruits - a.fruits || b.score - a.score },
+  { title: "Længste spil", tab: "Tid", stat: "time", sort: (a, b) => b.time - a.time || b.score - a.score },
+  { title: "Længste combo", tab: "Combo", stat: "combo", sort: (a, b) => b.combo - a.combo || b.score - a.score },
+];
+
+</script>
+<script>
+// ---- Slangen: led, retning og kø af retningsskift ----
+class Snake {
+  constructor() {
+    this.reset();
+  }
+
+  reset() {
+    this.segments = [
+      { x: 10, y: 10 },
+      { x: 9, y: 10 },
+      { x: 8, y: 10 },
+    ];
+    this.direction = "RIGHT";
+    this.turnQueue = []; // retningsskift der venter på næste tick (max 2)
+  }
+
+  get head() {
+    return this.segments[0];
+  }
+
+  get length() {
+    return this.segments.length;
+  }
+
+  occupies(x, y) {
+    return this.segments.some(seg => seg.x === x && seg.y === y);
+  }
+
+  // Lægger et retningsskift i køen. Man kan ikke vende 180 grader ind i sig selv, heller ikke ved to hurtige tryk
+  queueTurn(dir) {
+    const last = this.turnQueue.length > 0 ? this.turnQueue[this.turnQueue.length - 1] : this.direction;
+    if (dir !== last && dir !== OPPOSITE[last] && this.turnQueue.length < 2) {
+      this.turnQueue.push(dir);
+    }
+  }
+
+  // Tager næste retningsskift i køen i brug (ét pr. tick)
+  applyTurn() {
+    if (this.turnQueue.length > 0) this.direction = this.turnQueue.shift();
+  }
+
+  // Feltet hovedet flytter til. Uden mure løber slangen rundt, og med mure giver væggen null
+  nextHead(walls) {
+    const [dx, dy] = DIR_VECTOR[this.direction];
+    let x = this.head.x + dx;
+    let y = this.head.y + dy;
+    if (walls) {
+      if (x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE) return null;
+    } else {
+      x = (x + GRID_SIZE) % GRID_SIZE;
+      y = (y + GRID_SIZE) % GRID_SIZE;
+    }
+    return { x, y };
+  }
+
+  // Sætter et nyt hoved foran. Kald dropTail() bagefter, hvis slangen ikke skal vokse
+  advance(newHead) {
+    this.segments.unshift(newHead);
+  }
+
+  dropTail() {
+    this.segments.pop();
+  }
+
+  // Fjerner de sidste led, men aldrig så slangen bliver kortere end MIN_SNAKE_LENGTH
+  shrink(amount) {
+    const n = Math.min(amount, this.length - MIN_SNAKE_LENGTH);
+    if (n > 0) this.segments.splice(this.length - n, n);
+  }
+
+  // Antal felter af slangens egen krop i en lige linje fra cell og fremad i den retning, den kører
+  runLength(cell, walls) {
+    const [dx, dy] = DIR_VECTOR[this.direction];
+    let x = cell.x;
+    let y = cell.y;
+    let n = 0;
+    while (n <= this.length && this.occupies(x, y)) {
+      n += 1;
+      x += dx;
+      y += dy;
+      if (!walls) {
+        x = (x + GRID_SIZE) % GRID_SIZE;
+        y = (y + GRID_SIZE) % GRID_SIZE;
+      }
+    }
+    return n;
+  }
+}
+
+</script>
+<script>
+// ---- Fugle: dukker op med tilfældige mellemrum og forsvinder efter en tilfældig, fast tid ----
+class Birds {
+  constructor() {
+    this.list = [];
+    this.spawnIn = 0;
+    this.difficulty = "normal";
+  }
+
+  reset(difficulty) {
+    this.difficulty = difficulty;
+    this.list = [];
+    this.spawnIn = this.nextInterval();
+  }
+
+  // Sværhed styrer fuglene: ingen fugle, normalt, eller flere fugle der dukker op oftere
+  get settings() {
+    if (this.difficulty === "none") {
+      return { maxBirds: 0, minInterval: BIRD_MIN_INTERVAL, maxInterval: BIRD_MAX_INTERVAL };
+    }
+    if (this.difficulty === "hard") {
+      return { maxBirds: 6, minInterval: 2000, maxInterval: 4500 };
+    }
+    return { maxBirds: MAX_BIRDS, minInterval: BIRD_MIN_INTERVAL, maxInterval: BIRD_MAX_INTERVAL };
+  }
+
+  nextInterval() {
+    return randomBetween(this.settings.minInterval, this.settings.maxInterval);
+  }
+
+  at(x, y) {
+    return this.list.find(b => b.x === x && b.y === y);
+  }
+
+  add(cell) {
+    const lifetime = randomBetween(BIRD_MIN_LIFETIME, BIRD_MAX_LIFETIME);
+    const bird = {
+      x: cell.x,
+      y: cell.y,
+      color: Math.random() < 0.5 ? "red" : "yellow",
+      lifetime,
+      timeLeft: lifetime,
+    };
+    this.list.push(bird);
+    return bird;
+  }
+
+  remove(bird) {
+    this.list = this.list.filter(b => b !== bird);
+  }
+
+  // Kaldes én gang pr. tick. step er den rigtige tid i ms. Fuglenes tid er fast og påvirkes ikke af power-ups.
+  // Returnerer true, når en ny fugl skal dukke op (og der er plads til den)
+  tick(step) {
+    this.list.forEach(b => { b.timeLeft -= step; });
+    this.list = this.list.filter(b => b.timeLeft > 0);
+    this.spawnIn -= step;
+    if (this.spawnIn > 0) return false;
+    this.spawnIn = this.nextInterval();
+    return this.list.length < this.settings.maxBirds;
+  }
+}
+
+</script>
+<script>
+// ---- Special frugter og power-ups: stjerne, skjold, langsomt ur, kort, dobbelt point og forstærker ----
+// Her ligger tilstanden og reglerne for dem. De kan stacke. Hvad der sker på banen, styrer Game
+class PowerUps {
+  constructor() {
+    this.reset();
+  }
+
+  reset() {
+    this.bonuses = [];       // special frugter og power-ups på banen. Der kan ligge flere på samme tid
+    this.starTimeLeft = 0;   // ms tilbage af stjernen. Tager man flere, lægges tiden oven i
+    this.shieldCount = 0;    // antal skjolde man har
+    this.slowLevel = 0;      // antal langsomme ure man har taget (hvert sænker farten for altid)
+    this.doubleTimeLeft = 0; // ms tilbage af dobbelt point. Tager man flere, lægges tiden oven i
+    this.buffLevel = 0;      // antal forstærkere man har taget. De varer resten af spillet
+    this.ghostTicks = 0;     // felter tilbage, hvor slangen kører hen over sin egen krop
+  }
+
+  // ---- På banen ----
+  static randomFruitType() {
+    const normal = ["pear", "mango", "watermelon"];
+    return normal[Math.floor(Math.random() * normal.length)];
+  }
+
+  static randomPowerupType() {
+    return POWERUP_TYPES[Math.floor(Math.random() * POWERUP_TYPES.length)];
+  }
+
+  // Vælger en type og lægger en special frugt eller power-up på cellen.
+  // kind "fruit" giver altid en normal special frugt, og "powerup" altid en power-up.
+  // Uden kind bestemmer chancerne, og uden power-ups bliver det altid en normal frugt
+  spawn(cell, powerupsOn, kind) {
+    let type;
+    if (kind === "fruit") {
+      type = PowerUps.randomFruitType();
+    } else if (kind === "powerup") {
+      type = PowerUps.randomPowerupType();
+    } else {
+      const roll = powerupsOn ? Math.random() : 1;
+      let edge = STAR_CHANCE;
+      if (roll < edge) {
+        type = "star";
+      } else if (roll < (edge += SHIELD_CHANCE)) {
+        type = "shield";
+      } else if (roll < (edge += SLOW_CHANCE)) {
+        type = "slow";
+      } else if (roll < (edge += SHRINK_CHANCE)) {
+        type = "shrink";
+      } else if (roll < (edge += DOUBLE_CHANCE)) {
+        type = "double";
+      } else if (roll < (edge += BUFF_CHANCE)) {
+        type = "buff";
+      } else {
+        type = PowerUps.randomFruitType();
+      }
+    }
+    const bonus = { x: cell.x, y: cell.y, type, timeLeft: BONUS_LIFETIME };
+    this.bonuses.push(bonus);
+    return bonus;
+  }
+
+  at(x, y) {
+    return this.bonuses.find(b => b.x === x && b.y === y);
+  }
+
+  remove(bonus) {
+    this.bonuses = this.bonuses.filter(b => b !== bonus);
+  }
+
+  // Special frugt giver 1,1 til 2 gange æblets point, jo hurtigere den spises
+  pointFactor(bonus) {
+    return BONUS_MIN_FACTOR + (BONUS_MAX_FACTOR - BONUS_MIN_FACTOR) * (bonus.timeLeft / BONUS_LIFETIME);
+  }
+
+  // ---- Effekter ----
+  // Dobbelt point giver 2 gange alle point, så længe effekten varer
+  get pointMultiplier() {
+    return this.doubleTimeLeft > 0 ? 2 : 1;
+  }
+
+  get canEatBirds() {
+    return this.starTimeLeft > 0;
+  }
+
+  // Hvor mange gange længere tid hvert tick tager på grund af de langsomme ure
+  get slowFactor() {
+    return Math.pow(1 / SPEED_FACTOR, SLOW_STEPS * this.slowLevel);
+  }
+
+  // Tager en power-up i brug. Kortere håndteres af slangen selv, så den er ikke med her
+  activate(type) {
+    if (type === "star") this.starTimeLeft += STAR_DURATION;
+    if (type === "shield") this.shieldCount = Math.min(MAX_SHIELDS, this.shieldCount + 1);
+    if (type === "slow") this.slowLevel += 1;
+    if (type === "double") this.doubleTimeLeft += DOUBLE_DURATION;
+    if (type === "buff") this.buffLevel = Math.min(BUFF_MAX_LEVEL, this.buffLevel + 1);
+  }
+
+  // Kaldes én gang pr. tick. step er den rigtige tid pr. tick i ms
+  tick(step) {
+    // forstærkerne får special frugten, stjernen og dobbelt point til at løbe langsommere ud, så de varer længere
+    const powerStep = step / (1 + this.buffLevel);
+    this.bonuses.forEach(b => { b.timeLeft -= powerStep; });
+    this.bonuses = this.bonuses.filter(b => b.timeLeft > 0);
+    this.starTimeLeft = Math.max(0, this.starTimeLeft - powerStep);
+    this.doubleTimeLeft = Math.max(0, this.doubleTimeLeft - powerStep);
+  }
+
+  // ---- Skjold ----
+  // Bruger ét skjold. Returnerer om man havde et
+  useShield() {
+    if (this.shieldCount === 0) return false;
+    this.shieldCount -= 1;
+    return true;
+  }
+
+  // Med skjold kan man køre hen over sin egen krop: ét skjold pr. felt krop i en lige linje.
+  // Returnerer om man havde nok skjolde
+  passOver(run) {
+    if (run > this.shieldCount) return false;
+    this.shieldCount -= run;
+    this.ghostTicks = run - 1; // de resterende felter efter det første
+    return true;
+  }
+
+  // Er man midt i at køre hen over sig selv, tæller et felt ned, og kollisionen springes over
+  consumeGhostTick() {
+    if (this.ghostTicks <= 0) return false;
+    this.ghostTicks -= 1;
+    return true;
+  }
+}
+
+</script>
+<script>
+// ---- Sprites: tegning af frugter, power-ups og fugle. Ren tegning uden spillogik ----
+// c er den tegnekontekst, der tegnes på: banen eller et lille ikon i panelet over banen
+class Sprites {
+  // Tegner en frugt eller power-up med en lille skygge under
+  static fruit(c, type, cx, cy) {
+    c.fillStyle = "rgba(0, 0, 0, 0.3)";
+    c.beginPath();
+    c.ellipse(cx, cy + 8, 6, 2.5, 0, 0, Math.PI * 2);
+    c.fill();
+
+    const draw = {
+      pear: Sprites.pear,
+      mango: Sprites.mango,
+      watermelon: Sprites.watermelon,
+      star: Sprites.star,
+      shield: Sprites.shield,
+      slow: Sprites.clock,
+      shrink: Sprites.shrink,
+      double: Sprites.double,
+      buff: Sprites.buff,
+    }[type] || Sprites.apple;
+    draw(c, cx, cy);
+  }
+
+  static apple(c, cx, cy) {
+    c.fillStyle = APPLE_COLOR;
+    c.beginPath();
+    c.arc(cx - 3, cy + 1, 6.5, 0, Math.PI * 2);
+    c.fill();
+    c.beginPath();
+    c.arc(cx + 3, cy + 1, 6.5, 0, Math.PI * 2);
+    c.fill();
+
+    c.strokeStyle = "#6b4226";
+    c.lineWidth = 1.5;
+    c.beginPath();
+    c.moveTo(cx, cy - 4);
+    c.lineTo(cx + 1, cy - 8);
+    c.stroke();
+
+    c.fillStyle = "#4caf50";
+    c.beginPath();
+    c.ellipse(cx + 4, cy - 7, 3.5, 2, -0.5, 0, Math.PI * 2);
+    c.fill();
+
+    c.fillStyle = "rgba(255, 255, 255, 0.45)";
+    c.beginPath();
+    c.arc(cx - 4, cy - 1, 2, 0, Math.PI * 2);
+    c.fill();
+  }
+
+  static pear(c, cx, cy) {
+    c.fillStyle = BONUS_FRUITS.pear.color;
+    c.beginPath();
+    c.arc(cx, cy + 3, 6, 0, Math.PI * 2);
+    c.fill();
+    c.beginPath();
+    c.arc(cx, cy - 3, 4.5, 0, Math.PI * 2);
+    c.fill();
+
+    c.strokeStyle = "#6b4226";
+    c.lineWidth = 1.5;
+    c.beginPath();
+    c.moveTo(cx, cy - 7);
+    c.lineTo(cx + 1, cy - 9);
+    c.stroke();
+
+    c.fillStyle = "rgba(255, 255, 255, 0.45)";
+    c.beginPath();
+    c.arc(cx - 3, cy + 2, 1.8, 0, Math.PI * 2);
+    c.fill();
+  }
+
+  static mango(c, cx, cy) {
+    c.fillStyle = BONUS_FRUITS.mango.color;
+    c.beginPath();
+    c.ellipse(cx, cy, 8, 6, -0.6, 0, Math.PI * 2);
+    c.fill();
+
+    c.fillStyle = "rgba(230, 57, 70, 0.35)";
+    c.beginPath();
+    c.ellipse(cx + 1, cy + 1, 5, 3.5, -0.6, 0, Math.PI * 2);
+    c.fill();
+
+    c.strokeStyle = "#6b4226";
+    c.lineWidth = 1.5;
+    c.beginPath();
+    c.moveTo(cx + 4, cy - 4);
+    c.lineTo(cx + 5, cy - 7);
+    c.stroke();
+  }
+
+  // Skive med fladen opad: grøn skal, rødt frugtkød og sorte kerner
+  static watermelon(c, cx, cy) {
+    const cy2 = cy + 1;
+    c.fillStyle = "#2a9d8f";
+    c.beginPath();
+    c.arc(cx, cy2, 9, 0, Math.PI);
+    c.closePath();
+    c.fill();
+
+    c.fillStyle = BONUS_FRUITS.watermelon.color;
+    c.beginPath();
+    c.arc(cx, cy2, 7.5, 0, Math.PI);
+    c.closePath();
+    c.fill();
+
+    c.fillStyle = "#1d1d1d";
+    [[-4, 2], [0, 3], [4, 2], [-1, 4]].forEach(([dx, dy]) => {
+      c.beginPath();
+      c.arc(cx + dx, cy2 + dy, 1, 0, Math.PI * 2);
+      c.fill();
+    });
+  }
+
+  // Gylden stjerne: den der gør fuglene spiselige
+  static star(c, cx, cy) {
+    c.fillStyle = BONUS_FRUITS.star.color;
+    c.strokeStyle = "#f4a261";
+    c.lineWidth = 1;
+    c.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const r = i % 2 === 0 ? 8 : 3.5;
+      const a = -Math.PI / 2 + (i * Math.PI) / 5;
+      const px = cx + Math.cos(a) * r;
+      const py = cy + Math.sin(a) * r;
+      if (i === 0) c.moveTo(px, py);
+      else c.lineTo(px, py);
+    }
+    c.closePath();
+    c.fill();
+    c.stroke();
+  }
+
+  // Skjold: blåt skjold med hvid glans
+  static shield(c, cx, cy) {
+    c.fillStyle = BONUS_FRUITS.shield.color;
+    c.strokeStyle = "#0077b6";
+    c.lineWidth = 1.5;
+    c.beginPath();
+    c.moveTo(cx - 7, cy - 7);
+    c.lineTo(cx + 7, cy - 7);
+    c.lineTo(cx + 7, cy + 1);
+    c.quadraticCurveTo(cx + 6, cy + 7, cx, cy + 9);
+    c.quadraticCurveTo(cx - 6, cy + 7, cx - 7, cy + 1);
+    c.closePath();
+    c.fill();
+    c.stroke();
+    c.fillStyle = "rgba(255, 255, 255, 0.5)";
+    c.beginPath();
+    c.arc(cx - 3, cy - 3, 2, 0, Math.PI * 2);
+    c.fill();
+  }
+
+  // Langsomt ur: lilla urskive med to visere
+  static clock(c, cx, cy) {
+    c.fillStyle = BONUS_FRUITS.slow.color;
+    c.strokeStyle = "#3c1d6e";
+    c.lineWidth = 1.5;
+    c.beginPath();
+    c.arc(cx, cy, 8, 0, Math.PI * 2);
+    c.fill();
+    c.stroke();
+    c.beginPath();
+    c.moveTo(cx, cy);
+    c.lineTo(cx, cy - 5);
+    c.moveTo(cx, cy);
+    c.lineTo(cx + 3.5, cy + 1.5);
+    c.stroke();
+  }
+
+  // Dobbelt point: orange rund med et stort 2-tal
+  static double(c, cx, cy) {
+    c.fillStyle = BONUS_FRUITS.double.color;
+    c.beginPath();
+    c.arc(cx, cy, 8, 0, Math.PI * 2);
+    c.fill();
+    c.fillStyle = "#fff";
+    c.font = "bold 11px 'Courier New', monospace";
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    c.fillText("2", cx, cy + 0.5);
+  }
+
+  // Forstærker: turkis rund med en hvid pil opad
+  static buff(c, cx, cy) {
+    c.fillStyle = BONUS_FRUITS.buff.color;
+    c.beginPath();
+    c.arc(cx, cy, 8, 0, Math.PI * 2);
+    c.fill();
+    c.fillStyle = "#fff";
+    c.beginPath();
+    c.moveTo(cx, cy - 5);
+    c.lineTo(cx + 4.5, cy);
+    c.lineTo(cx + 1.5, cy);
+    c.lineTo(cx + 1.5, cy + 5);
+    c.lineTo(cx - 1.5, cy + 5);
+    c.lineTo(cx - 1.5, cy);
+    c.lineTo(cx - 4.5, cy);
+    c.closePath();
+    c.fill();
+  }
+
+  // Korte-power-up: pink rund med et hvidt minus
+  static shrink(c, cx, cy) {
+    c.fillStyle = BONUS_FRUITS.shrink.color;
+    c.beginPath();
+    c.arc(cx, cy, 8, 0, Math.PI * 2);
+    c.fill();
+    c.strokeStyle = "#fff";
+    c.lineWidth = 2.5;
+    c.beginPath();
+    c.moveTo(cx - 4, cy);
+    c.lineTo(cx + 4, cy);
+    c.stroke();
+  }
+
+  // Fugl set fra siden, tegnet omkring (0, 0) og skaleret op så den er tydelig
+  static bird(c, color, cx, cy) {
+    const p = BIRD_COLORS[color];
+    c.save();
+    c.translate(cx, cy);
+    c.scale(1.4, 1.4);
+    c.strokeStyle = "#111";
+    c.lineWidth = 0.8;
+
+    c.fillStyle = p.body;
+    c.beginPath();
+    c.ellipse(0, 1, 6, 4.5, 0, 0, Math.PI * 2);
+    c.fill();
+    c.stroke();
+    c.beginPath();
+    c.arc(5, -2, 3, 0, Math.PI * 2);
+    c.fill();
+    c.stroke();
+
+    c.fillStyle = p.wing;
+    c.beginPath();
+    c.moveTo(-2, 0);
+    c.lineTo(-7, -5);
+    c.lineTo(1, -1);
+    c.closePath();
+    c.fill();
+    c.stroke();
+
+    c.fillStyle = p.beak;
+    c.beginPath();
+    c.moveTo(7.5, -2.5);
+    c.lineTo(10, -2);
+    c.lineTo(7.5, -1.5);
+    c.closePath();
+    c.fill();
+
+    // øje med hvid og sort pupil
+    c.fillStyle = "#fff";
+    c.beginPath();
+    c.arc(6, -3, 1.3, 0, Math.PI * 2);
+    c.fill();
+    c.fillStyle = "#111";
+    c.beginPath();
+    c.arc(6.3, -3, 0.7, 0, Math.PI * 2);
+    c.fill();
+    c.restore();
+  }
+}
+
+</script>
+<script>
+// ---- Renderer: tegner banen, slangen, frugter, fugle, effekter og overlays ----
+// ink er tekstfarven på banen, accent er farven til specialtekst
+const THEMES = {
+  dark: { base: "#0f0f1a", checker: "rgba(78, 204, 163, 0.04)", ink: "#fff", accent: "#ffd60a" },
+  forest: { base: "#1f4a2e", checker: "rgba(0, 0, 0, 0.08)", decor: "#2c6240", ink: "#fff", accent: "#ffd60a" },
+  beach: { base: "#e6c97a", checker: "rgba(140, 90, 20, 0.08)", decor: "#d4a84f", ink: "#2b2013", accent: "#9a6b00" },
+};
+
+// Udseende for de tre slangetyper. Håret bruges kun, når slangen er en hun
+const SNAKE_STYLES = {
+  original: {
+    head: "#4ecca3",
+    bodyA: "#2f9e7a",
+    bodyB: "#28886b",
+    hair: { fill: "#f7e7a1", edge: "#c9a94a" },
+  },
+  tiger: {
+    head: "#f5f5f5",
+    bodyA: "#f5f5f5", // grundfarven på kroppen
+    stripe: "#111111", // sorte striber på tværs af kroppen
+    hair: { fill: "#1b1b1b", edge: "#666666" },
+  },
+  sandorm: {
+    head: "#ff8c42",
+    bodyA: "#f4a261",
+    bodyB: "#e9833f",
+    hair: { fill: "#c1121f", edge: "#780000" },
+  },
+};
+
+// Med stjernen bliver slangen guld. De sidste 3 sekunder blinker den mellem guld og sit eget udseende
+const GOLD_STYLE = { head: "#ffe066", bodyA: "#ffd60a", bodyB: "#f2b705" };
+
+// Forskellen mellem to felter, så en slange der går ud over kanten tæller som et lille skridt
+function wrapDelta(d) {
+  if (d > GRID_SIZE / 2) return d - GRID_SIZE;
+  if (d < -GRID_SIZE / 2) return d + GRID_SIZE;
+  return d;
+}
+
+class Renderer {
+  constructor(canvas) {
+    this.ctx = canvas.getContext("2d");
+    this.forestDecor = Renderer.makeDecor(28, 6, 10); // buske
+    this.beachDecor = Renderer.makeDecor(70, 1, 2.5); // sandkorn
+  }
+
+  // Faste tilfældige positioner for pynten, så den ikke flimrer mellem billeder
+  static makeDecor(count, minR, maxR) {
+    let seed = 7;
+    const rand = () => {
+      seed = (seed * 16807) % 2147483647;
+      return seed / 2147483647;
+    };
+    return Array.from({ length: count }, () => ({
+      x: rand() * CANVAS_SIZE,
+      y: rand() * CANVAS_SIZE,
+      r: minR + rand() * (maxR - minR),
+    }));
+  }
+
+  // ---- Hele billedet ----
+  draw(game) {
+    const { ctx } = this;
+    const { settings, powerups, effects } = game;
+    const theme = THEMES[settings.theme];
+
+    this.drawBackground(settings.theme);
+
+    const scale = this.fruitScale(game);
+    this.drawFruitAt("apple", game.food, scale);
+
+    // special frugter og power-ups (blinker de sidste to sekunder)
+    powerups.bonuses.forEach(b => {
+      const blinking = b.timeLeft < 2000 && Math.floor(b.timeLeft / 150) % 2 === 0;
+      if (!blinking) this.drawFruitAt(b.type, b, scale);
+    });
+
+    // skjoldet blinker kort, når det er brugt
+    ctx.globalAlpha = effects.shieldFlash > 0 && Math.floor(effects.shieldFlash / 100) % 2 === 0 ? 0.3 : 1;
+    this.drawSnake(game);
+    ctx.globalAlpha = 1;
+
+    this.drawBirds(game, theme);
+    this.drawParticles(effects);
+    this.drawFloaters(effects, theme);
+
+    if (powerups.canEatBirds) {
+      ctx.fillStyle = theme.accent;
+      ctx.font = "bold 13px 'Courier New', monospace";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "bottom";
+      ctx.fillText(`Fugle kan spises: ${Math.ceil(powerups.starTimeLeft / 1000)}s`, CANVAS_SIZE / 2, CANVAS_SIZE - 6);
+    }
+
+    // start-overlay: slangen står stille, indtil man trykker på en piletast
+    if (game.waitingForStart) {
+      this.drawOverlay("rgba(15, 15, 26, 0.5)", "bold 18px", "Tryk på en piletast for at starte");
+    }
+
+    // pause-overlay
+    if (game.isPaused) {
+      this.drawOverlay("rgba(15, 15, 26, 0.6)", "bold 32px", "PAUSE");
+    }
+  }
+
+  drawOverlay(background, font, text) {
+    const { ctx } = this;
+    ctx.fillStyle = background;
+    ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+    ctx.fillStyle = "#eee";
+    ctx.font = `${font} 'Courier New', monospace`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(text, CANVAS_SIZE / 2, CANVAS_SIZE / 2);
+  }
+
+  // ---- Baggrund ----
+  drawBackground(themeName) {
+    const { ctx } = this;
+    const theme = THEMES[themeName];
+    ctx.fillStyle = theme.base;
+    ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+
+    // lyse felter i et skakbrætsmønster, så det er lettere at se rækker og kolonner
+    ctx.fillStyle = theme.checker;
+    for (let y = 0; y < GRID_SIZE; y++) {
+      for (let x = 0; x < GRID_SIZE; x++) {
+        if ((x + y) % 2 === 0) ctx.fillRect(x * CELL, y * CELL, CELL, CELL);
+      }
+    }
+
+    const decor = { forest: this.forestDecor, beach: this.beachDecor }[themeName];
+    if (decor) {
+      ctx.fillStyle = theme.decor;
+      decor.forEach(d => {
+        ctx.beginPath();
+        ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+  }
+
+  // ---- Frugter ----
+  // Frugterne vokser lidt for hvert combo-trin
+  fruitScale(game) {
+    return 1 + 0.12 * (game.score.multiplier - 1);
+  }
+
+  // Tegner en frugt i en celle, skaleret med combo
+  drawFruitAt(type, cell, scale) {
+    const { ctx } = this;
+    ctx.save();
+    ctx.translate(cellCenterPx(cell.x), cellCenterPx(cell.y));
+    ctx.scale(scale, scale);
+    Sprites.fruit(ctx, type, 0, 0);
+    ctx.restore();
+  }
+
+  // ---- Slangen ----
+  activeSnakeStyle(game) {
+    const base = SNAKE_STYLES[game.settings.snakeType];
+    const starTimeLeft = game.powerups.starTimeLeft;
+    if (starTimeLeft <= 0) return base;
+    const blinkOff = starTimeLeft < 3000 && Math.floor(starTimeLeft / 150) % 2 === 0;
+    if (blinkOff) return base;
+    // tigerens sorte striber bliver sorte: det er de hvide dele, der bliver guld
+    return { ...base, head: GOLD_STYLE.head, bodyA: GOLD_STYLE.bodyA, bodyB: GOLD_STYLE.bodyB };
+  }
+
+  drawSnake(game) {
+    const { ctx } = this;
+    const style = this.activeSnakeStyle(game);
+    const { snake } = game;
+
+    if (style.stripe) {
+      this.drawStripedBody(snake, style);
+    } else {
+      // kroppen skifter farve mellem to led, så slangen får et skællet udseende
+      snake.segments.forEach((seg, i) => {
+        if (i === 0) ctx.fillStyle = style.head;
+        else ctx.fillStyle = i % 2 === 0 ? style.bodyA : style.bodyB;
+        ctx.beginPath();
+        ctx.roundRect(seg.x * CELL + 1, seg.y * CELL + 1, CELL - 2, CELL - 2, 5);
+        ctx.fill();
+        // tynd mørk kant, så slangen også ses mod grønt og sand
+        ctx.strokeStyle = "rgba(0, 0, 0, 0.35)";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      });
+    }
+
+    if (game.settings.isFemale) this.drawWig(snake, style.hair);
+    this.drawEyes(snake);
+    if (game.powerups.shieldCount > 0) this.drawShieldRing(snake, game.powerups.shieldCount);
+  }
+
+  // Et felt i tigermønster: hvidt, med to sorte striber der går tværs over slangens retning
+  drawTigerSegment(cx, cy, ux, uy, style) {
+    const { ctx } = this;
+    const half = CELL / 2 - 1;
+    const nx = -uy; // vinkelret på retningen
+    const ny = ux;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(cx - half, cy - half, half * 2, half * 2, 5);
+    ctx.fillStyle = style.bodyA;
+    ctx.fill();
+    ctx.clip();
+
+    ctx.strokeStyle = style.stripe;
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = "round";
+    [-4, 4].forEach(off => {
+      ctx.beginPath();
+      ctx.moveTo(cx + ux * off - nx * half, cy + uy * off - ny * half);
+      ctx.lineTo(cx + ux * off + nx * half, cy + uy * off + ny * half);
+      ctx.stroke();
+    });
+    ctx.restore();
+  }
+
+  // Tigerkrop: hvert felt får sine egne tigerstriber, og hovedet vender i bevægelsesretningen
+  drawStripedBody(snake, style) {
+    const segs = snake.segments;
+    segs.forEach((seg, i) => {
+      const cx = cellCenterPx(seg.x);
+      const cy = cellCenterPx(seg.y);
+      if (i === 0) {
+        const [ux, uy] = DIR_VECTOR[snake.direction];
+        this.drawTigerSegment(cx, cy, ux, uy, style);
+      } else {
+        // retningen i kroppen er fra halen mod hovedet
+        const before = segs[i - 1];
+        const after = segs[Math.min(segs.length - 1, i + 1)];
+        const tx = wrapDelta(before.x - after.x);
+        const ty = wrapDelta(before.y - after.y);
+        const len = Math.hypot(tx, ty) || 1;
+        this.drawTigerSegment(cx, cy, tx / len, ty / len, style);
+      }
+    });
+  }
+
+  // Langt hår: lokker der flagrer bagud og en hårbund over hovedet.
+  // Tegnes før øjnene, så de ligger ovenpå
+  drawWig(snake, hair) {
+    const { ctx } = this;
+    const hx = cellCenterPx(snake.head.x);
+    const hy = cellCenterPx(snake.head.y);
+    const [dx, dy] = DIR_VECTOR[snake.direction];
+    const px = -dy; // vinkelret på retningen
+    const py = dx;
+    const angle = Math.atan2(dy, dx);
+
+    ctx.fillStyle = hair.fill;
+    ctx.strokeStyle = hair.edge;
+    ctx.lineWidth = 1;
+
+    // to lange lokker der flagrer bagud, den ene til hver side
+    [-4, 4].forEach(side => {
+      ctx.beginPath();
+      ctx.ellipse(hx - dx * 13 + px * side, hy - dy * 13 + py * side, 8, 3, angle, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    });
+
+    // hårbund over bagerste halvdel af hovedet
+    ctx.beginPath();
+    ctx.ellipse(hx - dx * 4, hy - dy * 4, 6, 7, angle, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  // Øjnene kigger i den retning slangen bevæger sig
+  drawEyes(snake) {
+    const { ctx } = this;
+    const cx = cellCenterPx(snake.head.x);
+    const cy = cellCenterPx(snake.head.y);
+    const eyes = {
+      RIGHT: [[3, -3], [3, 3]],
+      LEFT: [[-3, -3], [-3, 3]],
+      UP: [[-3, -3], [3, -3]],
+      DOWN: [[-3, 3], [3, 3]],
+    }[snake.direction];
+    const look = DIR_VECTOR[snake.direction];
+
+    eyes.forEach(([dx, dy]) => {
+      ctx.fillStyle = "#fff";
+      ctx.beginPath();
+      ctx.arc(cx + dx, cy + dy, 2.2, 0, Math.PI * 2);
+      ctx.fill();
+      // lille kant, så det hvide øje også ses på det hvide tigerhoved
+      ctx.strokeStyle = "#111";
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+      ctx.fillStyle = "#111";
+      ctx.beginPath();
+      ctx.arc(cx + dx + look[0] * 0.8, cy + dy + look[1] * 0.8, 1.1, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+
+  drawShieldRing(snake, shieldCount) {
+    const { ctx } = this;
+    ctx.strokeStyle = BONUS_FRUITS.shield.color;
+    ctx.lineWidth = 1.5 + Math.min(shieldCount, 4); // ringen bliver tykkere med flere skjolde
+    ctx.beginPath();
+    ctx.arc(cellCenterPx(snake.head.x), cellCenterPx(snake.head.y), 13, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // ---- Fugle ----
+  drawBirds(game, theme) {
+    const { ctx } = this;
+    game.birds.list.forEach(b => {
+      const cx = cellCenterPx(b.x);
+      const cy = cellCenterPx(b.y);
+      const blinking = b.timeLeft < 1000 && Math.floor(b.timeLeft / 150) % 2 === 0;
+
+      // gylden ring: fuglen kan spises nu
+      if (game.powerups.canEatBirds) {
+        ctx.strokeStyle = BONUS_FRUITS.star.color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 17, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      if (!blinking) Sprites.bird(ctx, b.color, cx, cy);
+      this.drawBirdTimer(b, cx, cy, theme);
+    });
+  }
+
+  // Ring der tømmes og et sekundtal, så man kan se hvor længe fuglen er der
+  drawBirdTimer(b, cx, cy, theme) {
+    const { ctx } = this;
+    const radius = 13;
+    const fraction = b.timeLeft / b.lifetime;
+
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = 0.3;
+    ctx.strokeStyle = theme.ink;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    ctx.strokeStyle = theme.ink;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * fraction);
+    ctx.stroke();
+
+    // sekundtallet vises over fuglen, eller under hvis fuglen står øverst
+    const labelY = b.y === 0 ? cy + 20 : cy - 20;
+    ctx.fillStyle = theme.ink;
+    ctx.font = "bold 10px 'Courier New', monospace";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(`${Math.ceil(b.timeLeft / 1000)}s`, cx, labelY);
+  }
+
+  // ---- Effekter ----
+  drawParticles(effects) {
+    const { ctx } = this;
+    effects.particles.forEach(p => {
+      ctx.globalAlpha = p.life / p.maxLife;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+  }
+
+  drawFloaters(effects, theme) {
+    const { ctx } = this;
+    ctx.font = "bold 14px 'Courier New', monospace";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = theme.ink;
+    effects.floaters.forEach(f => {
+      ctx.globalAlpha = f.life / f.maxLife;
+      ctx.fillText(f.text, f.x, f.y);
+    });
+    ctx.globalAlpha = 1;
+  }
+}
+
+</script>
+<script>
+// ---- HUD: tal og paneler over banen ----
+
+// Point, combo og hvad næste æble giver
+class Hud {
+  constructor() {
+    this.scoreEl = document.getElementById("score");
+    this.comboEl = document.getElementById("combo");
+    this.nextPointsEl = document.getElementById("next-points");
+  }
+
+  update(game) {
+    this.scoreEl.textContent = game.score.points;
+    this.comboEl.textContent = game.score.multiplier;
+    this.nextPointsEl.textContent = game.applePoints() * game.score.nextMultiplier;
+  }
+}
+
+// Combo-tallet over banen: hvor høj ens combo er. Det blinker, når der er COMBO_BLINK_MS eller mindre
+// tilbage til næste frugt, og er skjult, når der ikke er en combo
+class ComboMeter {
+  constructor() {
+    this.el = document.getElementById("combo-meter");
+    this.label = document.getElementById("combo-label");
+  }
+
+  update(score) {
+    const active = score.comboTimeLeft > 0;
+    this.el.classList.toggle("invisible", !active);
+    if (!active) {
+      this.el.classList.remove("blinking");
+      return;
+    }
+    this.label.textContent = `Combo: ${score.combo}`;
+    this.el.classList.toggle("blinking", score.comboTimeLeft <= COMBO_BLINK_MS);
+  }
+}
+
+// Rækken over banen: de power-ups man har lige nu, og hvor mange eller hvor længe
+class StatusRow {
+  constructor() {
+    this.el = document.getElementById("status-row");
+    this.lastKey = "";
+  }
+
+  update(powerups) {
+    const items = [];
+    if (powerups.shieldCount > 0) {
+      items.push({ text: `Skjold: ${powerups.shieldCount}`, color: BONUS_FRUITS.shield.color });
+    }
+    if (powerups.slowLevel > 0) {
+      items.push({ text: `Langsom: ${powerups.slowLevel}`, color: BONUS_FRUITS.slow.color });
+    }
+    if (powerups.starTimeLeft > 0) {
+      items.push({ text: `Stjerne: ${Math.ceil(powerups.starTimeLeft / 1000)}s`, color: BONUS_FRUITS.star.color });
+    }
+    if (powerups.doubleTimeLeft > 0) {
+      items.push({ text: `Dobbelt: ${Math.ceil(powerups.doubleTimeLeft / 1000)}s`, color: BONUS_FRUITS.double.color });
+    }
+    if (powerups.buffLevel > 0) {
+      items.push({ text: `Forstærk: ${powerups.buffLevel}`, color: BONUS_FRUITS.buff.color });
+    }
+
+    // genopbyg kun, når noget er ændret
+    const key = items.map(i => i.text).join("|");
+    if (key === this.lastKey) return;
+    this.lastKey = key;
+
+    this.el.replaceChildren();
+    items.forEach(item => {
+      const chip = document.createElement("span");
+      chip.className = "status-chip";
+      chip.textContent = item.text;
+      chip.style.color = item.color;
+      this.el.appendChild(chip);
+    });
+  }
+}
+
+// Panelet over banen har en lille boks for hver special frugt og power-up, der ligger på banen
+class BonusPanel {
+  constructor() {
+    this.el = document.getElementById("bonus-panel");
+    this.items = new Map(); // special frugt -> dens boks i panelet
+  }
+
+  // En boks med billede af special frugten, point eller navn, og en tidslinje
+  createItem(bonus) {
+    const el = document.createElement("div");
+    el.className = "bonus-item";
+
+    const icon = document.createElement("canvas");
+    icon.className = "bonus-icon";
+    icon.width = 32;
+    icon.height = 32;
+    const iconCtx = icon.getContext("2d");
+    iconCtx.scale(1.4, 1.4);
+    Sprites.fruit(iconCtx, bonus.type, 10, 10);
+
+    const label = document.createElement("span");
+    const bar = document.createElement("div");
+    bar.className = "bonus-bar";
+    const fill = document.createElement("div");
+    fill.className = "bonus-bar-fill";
+    bar.appendChild(fill);
+
+    const info = document.createElement("div");
+    info.className = "bonus-info";
+    info.appendChild(label);
+    info.appendChild(bar);
+
+    el.appendChild(icon);
+    el.appendChild(info);
+    return { el, label, fill };
+  }
+
+  update(game) {
+    const bonuses = game.powerups.bonuses;
+
+    // fjern bokse for dem, der er væk
+    this.items.forEach((item, bonus) => {
+      if (!bonuses.includes(bonus)) {
+        item.el.remove();
+        this.items.delete(bonus);
+      }
+    });
+
+    bonuses.forEach(bonus => {
+      let item = this.items.get(bonus);
+      if (!item) {
+        item = this.createItem(bonus);
+        this.items.set(bonus, item);
+        this.el.appendChild(item.el);
+      }
+      item.label.textContent = POWERUP_TYPES.includes(bonus.type)
+        ? POWERUP_LABELS[bonus.type]
+        : `+${game.bonusPoints(bonus) * game.score.nextMultiplier}`;
+      item.fill.style.width = `${Math.min(100, (bonus.timeLeft / BONUS_LIFETIME) * 100)}%`;
+    });
+  }
+}
+
+</script>
+<script>
+// ---- Fyrværkeri: når man kommer på top 5, springer raketter over hele skærmen ----
+// Tegner på et gennemsigtigt lærred, der dækker siden og ikke tager imod klik
+class Fireworks {
+  constructor(canvas, sound) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext("2d");
+    this.sound = sound;
+    this.active = false;
+    this.rockets = [];
+    this.sparks = [];
+    this.timeLeft = 0;  // hvor længe der stadig sendes nye raketter op
+    this.launchIn = 0;  // ms til næste raket
+    this.interval = 500;
+  }
+
+  // rank er placeringen (1 er bedst). En 1. plads giver mere og længere fyrværkeri
+  start(rank) {
+    // har man bedt computeren om at undgå animationer, springer vi det over
+    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    this.resize();
+    this.rockets = [];
+    this.sparks = [];
+    this.active = true;
+    this.canvas.classList.add("active");
+    this.timeLeft = rank === 1 ? 7000 : 4500;
+    this.interval = rank === 1 ? 260 : 520;
+    this.launchIn = 0;
+    this.sound.fanfare();
+  }
+
+  stop() {
+    this.active = false;
+    this.rockets = [];
+    this.sparks = [];
+    this.timeLeft = 0;
+    this.canvas.classList.remove("active");
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+  }
+
+  // Lærredet får samme størrelse som det synlige område (uden rullebjælke), så tegningen ikke bliver skaleret
+  resize() {
+    const root = document.documentElement;
+    this.canvas.width = (root && root.clientWidth) || window.innerWidth || 800;
+    this.canvas.height = (root && root.clientHeight) || window.innerHeight || 600;
+  }
+
+  launch() {
+    const w = this.canvas.width;
+    const h = this.canvas.height;
+    const targetY = h * (0.12 + Math.random() * 0.38);
+    this.rockets.push({
+      x: w * (0.1 + Math.random() * 0.8),
+      y: h,
+      targetY,
+      vy: -(h - targetY) / (800 + Math.random() * 300), // px pr. ms, så den når målet på ca. 1 sekund
+      hue: Math.floor(Math.random() * 360),
+    });
+  }
+
+  // En raket springer: lysende gnister flyver ud i alle retninger, med nogle få hvide imellem
+  explode(rocket) {
+    const count = 60 + Math.floor(Math.random() * 30);
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 0.08 + Math.random() * 0.28; // px pr. ms
+      const white = Math.random() < 0.12;
+      const hue = (rocket.hue + (Math.random() - 0.5) * 50 + 360) % 360;
+      this.sparks.push({
+        x: rocket.x,
+        y: rocket.y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        life: 900 + Math.random() * 900,
+        maxLife: 1800,
+        color: white ? "255, 255, 255" : this.hslToRgb(hue, 1, 0.62),
+      });
+    }
+    this.sound.pop();
+  }
+
+  // Farver som "r, g, b", så gnisterne kan tones ud med en alfa-værdi
+  hslToRgb(h, s, l) {
+    const a = s * Math.min(l, 1 - l);
+    const f = n => {
+      const k = (n + h / 30) % 12;
+      return l - a * Math.max(-1, Math.min(k - 3, Math.min(9 - k, 1)));
+    };
+    return [f(0), f(8), f(4)].map(v => Math.round(v * 255)).join(", ");
+  }
+
+  // dt er tiden siden sidste billede i ms
+  update(dt) {
+    if (!this.active) return;
+
+    this.timeLeft -= dt;
+    if (this.timeLeft > 0) {
+      this.launchIn -= dt;
+      if (this.launchIn <= 0) {
+        this.launch();
+        this.launchIn = this.interval * (0.6 + Math.random() * 0.8);
+      }
+    }
+
+    this.rockets.forEach(r => {
+      r.y += r.vy * dt;
+      if (r.y <= r.targetY) {
+        r.done = true;
+        this.explode(r);
+      }
+    });
+    this.rockets = this.rockets.filter(r => !r.done);
+
+    this.sparks.forEach(s => {
+      s.vy += 0.00045 * dt; // tyngdekraft
+      const drag = Math.pow(0.997, dt);
+      s.vx *= drag;
+      s.vy *= drag;
+      s.x += s.vx * dt;
+      s.y += s.vy * dt;
+      s.life -= dt;
+    });
+    this.sparks = this.sparks.filter(s => s.life > 0);
+
+    if (this.timeLeft <= 0 && this.rockets.length === 0 && this.sparks.length === 0) {
+      this.stop();
+      return;
+    }
+    this.draw();
+  }
+
+  draw() {
+    const { ctx, canvas } = this;
+    // tidligere billeder tones langsomt ud, så gnisterne efterlader en hale
+    ctx.globalCompositeOperation = "destination-out";
+    ctx.fillStyle = "rgba(0, 0, 0, 0.22)";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.globalCompositeOperation = "source-over";
+
+    this.rockets.forEach(r => {
+      ctx.fillStyle = `hsl(${r.hue}, 100%, 75%)`;
+      ctx.beginPath();
+      ctx.arc(r.x, r.y, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    this.sparks.forEach(s => {
+      const fade = Math.min(1, s.life / 700);
+      ctx.fillStyle = `rgba(${s.color}, ${fade})`;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, 1.2 + 1.6 * fade, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+}
+
+</script>
+<script>
+// ---- Menu og top-lister: skærme, indstillinger, pop-ups, lyd-ikon og visning af listerne ----
+
+// Viser den valgte top-liste i alle bokse: den korte (top 5) i menuen og på game over-skærmen,
+// og den fulde (top 100) i pop-up'en, hvor man også kan søge på navn
+class ScoreboardView {
+  // Sekunder som m:ss
+  static formatTime(seconds) {
+    const m = Math.floor(seconds / 60);
+    const s = String(seconds % 60).padStart(2, "0");
+    return `${m}:${s}`;
+  }
+
+  // Stort forbogstav i hvert ord i et navn: "klaus lauritzen" bliver til "Klaus Lauritzen".
+  // Resten af bogstaverne beholdes, som de er skrevet. Kun visningen ændres, ikke det gemte navn
+  static capitalize(name) {
+    return name.replace(/(^|\s)(\S)/g, (match, space, letter) => space + letter.toUpperCase());
+  }
+
+  // Tallene i en post, delt i to linjer: den vigtigste (point, frugter og længste combo) og resten.
+  // key er navnet på tallet, så det tal listen er sorteret efter, kan fremhæves
+  static parts(entry) {
+    return {
+      main: [
+        { key: "score", text: `${entry.score} point` },
+        { key: "fruits", text: `${entry.fruits} frugter` },
+        { key: "combo", text: `combo: ${entry.combo}` },
+      ],
+      sub: [
+        { key: "time", text: ScoreboardView.formatTime(entry.time) },
+        { key: "birds", text: `${entry.birds} fugle` },
+        { key: "powerups", text: `${entry.powerups} power-ups` },
+        { key: "specials", text: `${entry.specials} special frugter` },
+      ],
+    };
+  }
+
+  // De to linjer som almindelig tekst
+  static describe(entry) {
+    const { main, sub } = ScoreboardView.parts(entry);
+    const join = list => list.map(p => p.text).join(" · ");
+    return [join(main), join(sub)];
+  }
+
+  // Fylder en linje med tallene, hver for sig, så det valgte tal (hotKey) kan fremhæves
+  static fillLine(lineEl, parts, hotKey) {
+    parts.forEach((part, i) => {
+      if (i > 0) {
+        const sep = document.createElement("span");
+        sep.className = "lb-sep";
+        sep.textContent = " · ";
+        lineEl.appendChild(sep);
+      }
+      const span = document.createElement("span");
+      span.className = part.key === hotKey ? "lb-part lb-hot" : "lb-part";
+      span.textContent = part.text;
+      lineEl.appendChild(span);
+    });
+  }
+
+  // Fanerne øverst i listen viser, hvilken side man er på: den valgte har grøn baggrund og fed skrift.
+  // Man kan klikke på en fane for at gå direkte til siden
+  renderTabs(tabsEl, scoreboard) {
+    if (!tabsEl) return;
+    tabsEl.replaceChildren();
+    Scoreboard.BOARDS.forEach((board, i) => {
+      const active = i === scoreboard.boardIndex;
+      const tab = document.createElement("button");
+      tab.className = active ? "board-tab active" : "board-tab";
+      tab.dataset.board = String(i);
+      tab.textContent = board.tab;
+      tab.setAttribute("aria-current", active ? "page" : "false");
+      tabsEl.appendChild(tab);
+    });
+  }
+
+  // Bruger textContent, så navne ikke kan indsætte HTML
+  render(scoreboard) {
+    const board = scoreboard.board;
+    document.querySelectorAll(".scoreboard").forEach(root => {
+      const limit = Number(root.dataset.limit) || SCOREBOARD_SIZE;
+      const filterInput = root.querySelector(".board-filter");
+      const filter = filterInput ? filterInput.value : "";
+      const entries = scoreboard.topFor(board, limit, filter);
+
+      root.querySelector(".board-title").textContent = board.title;
+      this.renderTabs(root.querySelector(".board-tabs"), scoreboard);
+      const list = root.querySelector(".board-list");
+      list.replaceChildren();
+
+      if (entries.length === 0) {
+        const li = document.createElement("li");
+        li.textContent = filter.trim() ? "Ingen spil matcher" : "Ingen endnu";
+        list.appendChild(li);
+        return;
+      }
+
+      entries.forEach(entry => {
+        const li = document.createElement("li");
+        // det spil man lige har spillet, får en anden baggrund
+        if (entry === scoreboard.lastEntry) li.className = "lb-current";
+        // øverste linje: navn til venstre, og point, frugter og combo til højre
+        const row = document.createElement("div");
+        row.className = "lb-row";
+        const name = document.createElement("span");
+        name.className = "lb-name";
+        name.textContent = ScoreboardView.capitalize(entry.name);
+        row.appendChild(name);
+        // det tal listen er sorteret efter, bliver fremhævet
+        const { main: mainParts, sub: subParts } = ScoreboardView.parts(entry);
+        const main = document.createElement("span");
+        main.className = "lb-main";
+        ScoreboardView.fillLine(main, mainParts, board.stat);
+        row.appendChild(main);
+        li.appendChild(row);
+        const sub = document.createElement("span");
+        sub.className = "lb-sub";
+        ScoreboardView.fillLine(sub, subParts, board.stat);
+        li.appendChild(sub);
+        list.appendChild(li);
+      });
+    });
+    this.scrollToCurrent();
+  }
+
+  // Ruller den fulde liste, så det spil man lige har spillet, står midt i billedet, hvis det er med på listen.
+  // Kaldes også, når vinduet åbnes, for der er listen skjult, mens den bygges
+  scrollToCurrent() {
+    document.querySelectorAll(".scoreboard").forEach(root => {
+      const list = root.querySelector(".board-list");
+      const current = list && list.querySelector(".lb-current");
+      if (!current || list.scrollHeight <= list.clientHeight) return;
+      list.scrollTop = current.offsetTop - (list.clientHeight - current.offsetHeight) / 2;
+    });
+  }
+}
+
+// Lyd-ikonet i hjørnet, som altid er synligt
+class SoundButton {
+  constructor(sound, button) {
+    this.sound = sound;
+    this.button = button;
+    button.addEventListener("click", () => this.toggle());
+    this.render();
+  }
+
+  toggle() {
+    this.sound.toggle();
+    this.render();
+  }
+
+  render() {
+    this.button.textContent = this.sound.enabled ? "🔊" : "🔇";
+  }
+}
+
+// Skærmene (menu, spil, game over), indstillingerne og pop-up'erne
+class Menu {
+  constructor() {
+    this.screens = {
+      menu: document.getElementById("menu-screen"),
+      game: document.getElementById("game-screen"),
+      gameover: document.getElementById("gameover-screen"),
+    };
+    this.nameInput = document.getElementById("player-name");
+    this.wallsToggle = document.getElementById("walls-toggle");
+    this.finalScoreEl = document.getElementById("final-score");
+    this.finalFruitsEl = document.getElementById("final-fruits");
+    this.finalStatsEl = document.getElementById("final-stats");
+
+    this.bindOptionRows();
+    this.bindModals();
+    this.renderRuleIcons();
+  }
+
+  // Tegner billederne i regelbogen med de samme tegninger, som bruges i spillet
+  renderRuleIcons() {
+    document.querySelectorAll("canvas[data-sprite]").forEach(canvas => {
+      const c = canvas.getContext("2d");
+      const type = canvas.dataset.sprite;
+      c.save();
+      if (type === "bird") {
+        c.scale(1.2, 1.2);
+        Sprites.bird(c, "red", 15, 12);
+      } else if (type === "combo") {
+        c.scale(1.9, 1.9);
+        c.fillStyle = BONUS_FRUITS.combo ? BONUS_FRUITS.combo.color : "#4ecca3";
+        c.beginPath();
+        c.arc(10.5, 10.5, 8, 0, Math.PI * 2);
+        c.fill();
+        c.fillStyle = "#1a1a2e";
+        c.font = "bold 9px 'Courier New', monospace";
+        c.textAlign = "center";
+        c.textBaseline = "middle";
+        c.fillText("x4", 10.5, 11);
+      } else {
+        c.scale(1.9, 1.9);
+        Sprites.fruit(c, type, 10.5, 10);
+      }
+      c.restore();
+    });
+  }
+
+  // ---- Skærme ----
+  showScreen(name) {
+    Object.values(this.screens).forEach(s => s.classList.add("hidden"));
+    this.screens[name].classList.remove("hidden");
+  }
+
+  showMenu() {
+    document.body.classList.remove("in-game");
+    this.showScreen("menu");
+  }
+
+  // Under spillet vises kun banen, ikke sidens overskrift
+  showGame() {
+    this.showScreen("game");
+    document.body.classList.add("in-game");
+  }
+
+  showGameOver(stats) {
+    this.finalScoreEl.textContent = stats.score;
+    this.finalFruitsEl.textContent = stats.fruits;
+    this.finalStatsEl.textContent = `Længste combo: ${stats.combo}\n${ScoreboardView.describe(stats)[1]}`;
+    document.body.classList.remove("in-game");
+    this.showScreen("gameover");
+  }
+
+  // ---- Indstillinger ----
+  // Værdien for det flueben der er sat i en række
+  groupValue(group) {
+    return document.querySelector(`[data-group="${group}"] input:checked`).value;
+  }
+
+  // Læser alle indstillinger. Uden navn får navnefeltet fokus, og der returneres null
+  readSettings() {
+    const name = this.nameInput.value.trim();
+    if (!name) {
+      this.nameInput.focus();
+      return null;
+    }
+    return {
+      name,
+      walls: this.wallsToggle.checked,
+      snakeType: this.groupValue("snake-type"),
+      isFemale: this.groupValue("snake-gender") === "female",
+      theme: this.groupValue("board-theme"),
+      difficulty: this.groupValue("difficulty"),
+      powerupsOn: this.groupValue("powerups-mode") === "on",
+    };
+  }
+
+  // Én markering pr. række: klik på en flueben fjerner de andre i samme række.
+  // Man kan ikke fjerne den sidste, så der altid er én valgt
+  bindOptionRows() {
+    document.querySelectorAll("[data-group]").forEach(row => {
+      row.addEventListener("change", (e) => {
+        if (!e.target.checked) {
+          e.target.checked = true;
+          return;
+        }
+        row.querySelectorAll("input[type='checkbox']").forEach(box => {
+          if (box !== e.target) box.checked = false;
+        });
+      });
+    });
+  }
+
+  // ---- Pop-ups (regler, indstillinger og top 100) ----
+  // Åbnes med knapper, lukkes med Luk, klik udenfor eller Esc
+  setModal(id, show) {
+    document.getElementById(id).classList.toggle("hidden", !show);
+  }
+
+  bindModals() {
+    document.querySelectorAll("[data-open]").forEach(btn => {
+      btn.addEventListener("click", () => this.setModal(btn.dataset.open, true));
+    });
+    document.querySelectorAll("[data-close]").forEach(btn => {
+      btn.addEventListener("click", () => this.setModal(btn.dataset.close, false));
+    });
+    document.querySelectorAll(".modal").forEach(modal => {
+      modal.addEventListener("click", (e) => {
+        if (e.target === modal) modal.classList.add("hidden");
+      });
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") document.querySelectorAll(".modal").forEach(m => m.classList.add("hidden"));
+    });
+  }
+
+  // ---- Knapper ----
+  // Start spil, Spil igen og Enter i navnefeltet starter alle et spil
+  onStart(handler) {
+    document.getElementById("start-btn").addEventListener("click", handler);
+    document.getElementById("restart-btn").addEventListener("click", handler);
+    this.nameInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") handler();
+    });
+  }
+
+  onBackToMenu(handler) {
+    document.getElementById("menu-btn").addEventListener("click", handler);
+  }
+}
+
+</script>
+<script>
+// ---- Game: spillets regler og spil-loop. Binder slange, point, power-ups, fugle og effekter sammen ----
+// ui samler det, der vises: { menu, hud, statusRow, bonusPanel, scoreboardView, renderer }
+class Game {
+  constructor(ui, sound, scoreboard) {
+    this.ui = ui;
+    this.sound = sound;
+    this.scoreboard = scoreboard;
+
+    this.snake = new Snake();
+    this.score = new Score();
+    this.powerups = new PowerUps();
+    this.birds = new Birds();
+    this.effects = new Effects();
+
+    this.settings = {
+      name: "", walls: false, snakeType: "original", isFemale: false,
+      theme: "dark", difficulty: "normal", powerupsOn: true,
+    };
+    this.food = null;
+    this.tickDelay = START_TICK_DELAY;
+    this.timer = null;
+    this.started = false; // er der kørt et spil endnu, så banen kan tegnes
+    this.isRunning = false;
+    this.isPaused = false;
+    this.waitingForStart = false;
+  }
+
+  // ---- Start og slut ----
+  start(settings) {
+    this.stop(); // stopper et evt. gammelt spil og fyrværkeriet fra det forrige spil
+    this.settings = settings;
+    this.sound.init();
+    this.tickDelay = START_TICK_DELAY;
+    this.reset();
+    this.started = true;
+    this.ui.menu.showGame();
+  }
+
+  reset() {
+    this.snake.reset();
+    this.score.reset();
+    this.powerups.reset();
+    this.birds.reset(this.settings.difficulty);
+    this.effects.reset();
+    this.scoreboard.clearLast();
+    this.isPaused = false;
+    this.isRunning = true;
+    this.waitingForStart = true;
+    this.food = null;
+    this.applesEaten = 0;
+    this.intro = {
+      fruitDone: false,
+      // uden power-ups er der ingen garanteret power-up
+      powerupDone: !this.settings.powerupsOn,
+      powerupApple: Game.pickIntroPowerupApple(),
+    };
+    this.placeApple();
+    this.ui.hud.update(this);
+  }
+
+  // Vælger, efter hvilket æble den garanterede power-up kommer: 4. (40 %), 5. (40 %) eller 6. (20 %)
+  static pickIntroPowerupApple() {
+    let roll = Math.random();
+    for (const option of INTRO_POWERUP_APPLES) {
+      if (roll < option.chance) return option.apple;
+      roll -= option.chance;
+    }
+    return INTRO_POWERUP_APPLES[INTRO_POWERUP_APPLES.length - 1].apple;
+  }
+
+  stop() {
+    clearInterval(this.timer);
+    this.ui.fireworks.stop();
+  }
+
+  endGame() {
+    this.isRunning = false;
+    this.stop();
+    this.sound.gameOver();
+    this.effects.burstAtCell(this.snake.head, "#e94560", 30);
+
+    const stats = this.score.stats();
+    this.scoreboard.submit(this.settings.name, stats);
+    this.ui.menu.showGameOver(stats);
+    this.ui.scoreboardView.render(this.scoreboard);
+
+    // kommer man på top 5 på en af listerne, er der fyrværkeri (længere og vildere for en 1. plads)
+    const placement = this.scoreboard.lastPlacement;
+    if (placement && placement.rank <= SCOREBOARD_SIZE) this.ui.fireworks.start(placement.rank);
+  }
+
+  // ---- Tid og fart ----
+  // Tick-tiden i ms lige nu: farten fra frugterne, gjort langsommere af de langsomme ure
+  effectiveTick() {
+    return Math.min(MAX_TICK_DELAY, this.tickDelay * this.powerups.slowFactor);
+  }
+
+  startTimer() {
+    clearInterval(this.timer);
+    this.timer = setInterval(() => this.tick(), this.effectiveTick());
+  }
+
+  // ---- Input ----
+  // Piletasterne drejer slangen. Den første piletast starter spillet
+  steer(dir) {
+    if (this.waitingForStart) {
+      this.waitingForStart = false;
+      this.startTimer();
+    }
+    this.snake.queueTurn(dir);
+  }
+
+  togglePause() {
+    if (this.isRunning && !this.waitingForStart) this.isPaused = !this.isPaused;
+  }
+
+  // ---- Banen ----
+  // Finder en ledig celle, som hverken er slangen, frugterne eller fuglene
+  randomFreeCell() {
+    let cell;
+    do {
+      cell = {
+        x: Math.floor(Math.random() * GRID_SIZE),
+        y: Math.floor(Math.random() * GRID_SIZE),
+      };
+    } while (
+      this.snake.occupies(cell.x, cell.y) ||
+      (this.food && this.food.x === cell.x && this.food.y === cell.y) ||
+      this.powerups.at(cell.x, cell.y) ||
+      this.birds.at(cell.x, cell.y)
+    );
+    return cell;
+  }
+
+  placeApple() {
+    this.food = this.randomFreeCell();
+  }
+
+  // Lægger en special frugt eller power-up på banen. Der kan ligge flere på samme tid.
+  // kind er "fruit", "powerup" eller ikke angivet (så afgør chancerne)
+  spawnBonus(kind) {
+    this.powerups.spawn(this.randomFreeCell(), this.settings.powerupsOn, kind);
+  }
+
+  // Kaldes når et æble er spist. Hvert æble kan give én special frugt eller power-up.
+  // I starten af et spil er det styret, så man bliver vænnet til det: intet før 2. æble,
+  // så altid en special frugt, og så altid en power-up efter 4., 5. eller 6. æble. Derefter er det tilfældigt
+  bonusAfterApple() {
+    const n = this.applesEaten;
+    if (!this.intro.fruitDone) {
+      if (n === INTRO_FRUIT_APPLE) {
+        this.spawnBonus("fruit");
+        this.intro.fruitDone = true;
+      }
+      return;
+    }
+    if (!this.intro.powerupDone) {
+      if (n === this.intro.powerupApple) {
+        this.spawnBonus("powerup");
+        this.intro.powerupDone = true;
+      }
+      return;
+    }
+    if (Math.random() < BONUS_CHANCE) this.spawnBonus();
+  }
+
+  // Må en fugl dukke op her? Aldrig i den linje slangen kører i (heller ikke efter et retningsskift, der venter),
+  // og altid mindst BIRD_MIN_DISTANCE felter fra hovedet. Uden mure tæller afstanden også rundt om kanten,
+  // for der er feltet foran hovedet i den anden side af banen
+  isBirdSpawnAllowed(cell) {
+    const head = this.snake.head;
+    const directions = [this.snake.direction, ...this.snake.turnQueue];
+    const isHorizontal = d => d === "LEFT" || d === "RIGHT";
+    if (directions.some(d => (isHorizontal(d) ? cell.y === head.y : cell.x === head.x))) return false;
+
+    const gap = (a, b) => {
+      const d = Math.abs(a - b);
+      return this.settings.walls ? d : Math.min(d, GRID_SIZE - d);
+    };
+    return Math.max(gap(cell.x, head.x), gap(cell.y, head.y)) >= BIRD_MIN_DISTANCE;
+  }
+
+  spawnBird() {
+    let cell;
+    do {
+      cell = this.randomFreeCell();
+    } while (!this.isBirdSpawnAllowed(cell));
+    this.birds.add(cell);
+    this.sound.birdChirp();
+  }
+
+  // ---- Point ----
+  // Tid til at holde en combo: hver forstærker giver 1 sekund mere
+  get comboWindow() {
+    return COMBO_WINDOW + COMBO_BUFF_BONUS * this.powerups.buffLevel;
+  }
+
+  applePoints() {
+    return this.score.applePoints(this.powerups.slowLevel);
+  }
+
+  // Special frugt giver 1,1 til 2 gange æblets point, jo hurtigere den spises
+  bonusPoints(bonus) {
+    return Math.round(this.applePoints() * this.powerups.pointFactor(bonus));
+  }
+
+  // ---- Spil-loop ----
+  tick() {
+    if (this.isPaused) return;
+
+    this.snake.applyTurn();
+
+    // alle timere tæller i rigtig tid. Det langsomme ur ændrer kun farten, og fuglenes tid er fast
+    const step = this.effectiveTick();
+    this.score.tick(step);
+    this.powerups.tick(step);
+    if (this.birds.tick(step)) this.spawnBird();
+    this.ui.hud.update(this);
+
+    const newHead = this.snake.nextHead(this.settings.walls);
+    if (!newHead) return this.crash();
+
+    // en fugl er dødelig, medmindre stjernen er aktiv
+    const hitBird = this.birds.at(newHead.x, newHead.y);
+    if (hitBird && !this.powerups.canEatBirds) return this.crash(hitBird);
+
+    // med skjold kan man køre hen over sin egen krop: ét skjold pr. felt i en lige linje
+    if (!this.powerups.consumeGhostTick() && this.snake.occupies(newHead.x, newHead.y)) {
+      if (!this.passOverBody(newHead)) return this.endGame();
+    }
+
+    this.snake.advance(newHead);
+
+    const hitBonus = this.powerups.at(newHead.x, newHead.y);
+    if (newHead.x === this.food.x && newHead.y === this.food.y) {
+      this.eatFruit(this.applePoints(), APPLE_COLOR, newHead);
+      this.applesEaten += 1;
+      this.placeApple();
+      this.bonusAfterApple();
+    } else if (hitBonus) {
+      this.collectBonus(hitBonus, newHead);
+    } else if (hitBird) {
+      this.eatBird(hitBird, newHead);
+    } else {
+      this.snake.dropTail();
+    }
+  }
+
+  // Dødelig kollision med væg eller fugl: ét skjold beskytter. Hovedet bliver stående, og skjoldet forbruges
+  crash(hitBird) {
+    if (!this.powerups.useShield()) return this.endGame();
+    this.effects.flashShield();
+    if (hitBird) this.birds.remove(hitBird);
+    this.effects.burstAtCell(this.snake.head, BONUS_FRUITS.shield.color, 20);
+  }
+
+  // Kør hen over sin egen krop med skjold. Returnerer om det lykkedes
+  passOverBody(cell) {
+    const run = this.snake.runLength(cell, this.settings.walls);
+    if (!this.powerups.passOver(run)) return false;
+    this.effects.flashShield();
+    this.effects.burstAtCell(cell, BONUS_FRUITS.shield.color, 20);
+    return true;
+  }
+
+  // ---- At spise ting ----
+  // Fælles for alle frugter: combo, point, fart og effekter
+  eatFruit(points, color, at) {
+    const before = this.score.multiplier;
+    const mult = this.score.registerCombo(this.comboWindow);
+    const gained = this.score.add(points * mult, this.powerups.pointMultiplier);
+    this.effects.floatTextAtCell(at, `+${gained}`);
+
+    this.score.fruits += 1;
+    if (this.score.fruits % SPEED_STEP_EVERY === 0) {
+      this.tickDelay = Math.max(MIN_TICK_DELAY, Math.round(this.tickDelay * SPEED_FACTOR));
+      this.startTimer();
+    }
+
+    this.effects.burstAtCell(at, color, 14);
+    this.sound.eat();
+    this.sound.comboFeedback(before, mult, this.score.combo);
+    this.ui.hud.update(this);
+  }
+
+  // Special frugt eller power-up. Power-ups giver en effekt men ingen point, og de tæller ikke med i combo'en eller farten
+  collectBonus(bonus, at) {
+    this.powerups.remove(bonus);
+
+    if (POWERUP_TYPES.includes(bonus.type)) {
+      this.activatePowerUp(bonus.type, at);
+      return;
+    }
+
+    this.score.specials += 1;
+    this.eatFruit(this.bonusPoints(bonus), BONUS_FRUITS[bonus.type].color, at);
+  }
+
+  activatePowerUp(type, at) {
+    this.score.powerups += 1;
+    if (type === "shrink") this.snake.shrink(SHRINK_AMOUNT);
+    else this.powerups.activate(type);
+    if (type === "slow") this.startTimer(); // tag den nye fart i brug med det samme
+
+    this.effects.burstAtCell(at, BONUS_FRUITS[type].color, 14);
+    this.sound.eat();
+  }
+
+  // Fuglen spises (kun med stjernen aktiv). Slangen vokser ligesom ved en frugt.
+  // Fugle giver altid 2 gange æblets point og tæller med i combo'en ligesom frugter
+  eatBird(bird, at) {
+    this.birds.remove(bird);
+    this.score.birds += 1;
+
+    const before = this.score.multiplier;
+    const mult = this.score.registerCombo(this.comboWindow);
+    const points = Math.round(this.applePoints() * BIRD_FACTOR * mult);
+    const gained = this.score.add(points, this.powerups.pointMultiplier);
+
+    this.effects.floatTextAtCell(at, `+${gained}`);
+    this.effects.burstAtCell(at, BIRD_COLORS[bird.color].body, 14);
+    this.sound.eat();
+    this.sound.comboFeedback(before, mult, this.score.combo);
+    this.ui.hud.update(this);
+  }
+
+  // ---- Tegning ----
+  // Kaldes af render-loopet med tiden siden sidste billede i ms
+  frame(dt) {
+    this.effects.update(dt);
+    this.ui.fireworks.update(dt);
+    if (!this.started) return;
+    this.ui.renderer.draw(this);
+    this.ui.bonusPanel.update(this);
+    this.ui.statusRow.update(this.powerups);
+    this.ui.comboMeter.update(this.score);
+  }
+}
+
+</script>
+<script>
+// ---- Opstart: samler delene og binder knapper og taster ----
+// Selve spillet ligger i Game (game.js). Resten:
+//   config.js     konstanter            sound.js     lyd
+//   score.js      point og combo        scoreboard.js top-listerne
+//   snake.js      slangen               birds.js     fugle
+//   powerups.js   power-ups             effects.js   partikler og tekst
+//   sprites.js    frugter og fugle      renderer.js  tegning af banen
+//   hud.js        paneler over banen    menu.js      skærme, indstillinger og pop-ups
+// Filerne loades i den rækkefølge, index.html angiver.
+
+const sound = new Sound();
+const scoreboard = new Scoreboard();
+const menu = new Menu();
+const scoreboardView = new ScoreboardView();
+const soundButton = new SoundButton(sound, document.getElementById("sound-btn"));
+
+const game = new Game(
+  {
+    menu,
+    scoreboardView,
+    hud: new Hud(),
+    comboMeter: new ComboMeter(),
+    fireworks: new Fireworks(document.getElementById("fireworks"), sound),
+    statusRow: new StatusRow(),
+    bonusPanel: new BonusPanel(),
+    renderer: new Renderer(document.getElementById("game-canvas")),
+  },
+  sound,
+  scoreboard
+);
+
+// ---- Knapper ----
+function startGame() {
+  const settings = menu.readSettings();
+  if (settings) game.start(settings);
+}
+menu.onStart(startGame);
+
+menu.onBackToMenu(() => {
+  game.stop();
+  menu.showMenu();
+  scoreboardView.render(scoreboard);
+});
+
+// fanerne på top-listen skifter liste, og søgefeltet filtrerer den fulde liste
+document.addEventListener("click", (e) => {
+  // når top 100 åbnes, ruller listen hen til det spil, man lige har spillet
+  if (e.target.closest(".board-more")) scoreboardView.scrollToCurrent();
+  const tab = e.target.closest(".board-tab");
+  if (!tab) return;
+  scoreboard.setBoard(Number(tab.dataset.board));
+  scoreboardView.render(scoreboard);
+});
+document.addEventListener("input", (e) => {
+  if (e.target.matches(".board-filter")) scoreboardView.render(scoreboard);
+});
+
+// Hemmelig knap: et klik på overskriften "Snake!" sender fyrværkeri op, som ved en 1. plads.
+// Holder man Shift nede, får man det korte, som ved en 2.-5. plads
+const secretFireworks = (e) => game.ui.fireworks.start(e.shiftKey ? 2 : 1);
+document.getElementById("game-title").addEventListener("click", secretFireworks);
+
+// ---- Taster ----
+document.addEventListener("keydown", (e) => {
+  // M slår lyden til eller fra (ikke når man skriver navn)
+  if (e.key.toLowerCase() === "m" && e.target.tagName !== "INPUT") {
+    soundButton.toggle();
+    return;
+  }
+
+  if (e.code === "Space") {
+    if (game.isRunning && !game.waitingForStart) {
+      e.preventDefault();
+      game.togglePause();
+    }
+    return;
+  }
+
+  const dir = KEY_DIRECTIONS[e.key];
+  if (!dir || !game.isRunning) return;
+  e.preventDefault();
+  game.steer(dir);
+});
+
+// ---- Render-loop: tegner med skærmens hastighed, så partikler bevæger sig jævnt ----
+let lastFrameTime = 0;
+function frame(now) {
+  const dt = Math.min(50, now - lastFrameTime);
+  lastFrameTime = now;
+  game.frame(dt);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+scoreboardView.render(scoreboard);
+
+</script>
+</body>
+</html>
