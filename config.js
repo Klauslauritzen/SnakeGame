@@ -19,8 +19,8 @@ const OLD_HIGH_SCORE_KEY = "snake-highscore"; // kun til at flytte en gammel enk
 
 // Fælles top-liste online (Supabase). Står de tomme, bruges kun den lokale liste i browseren.
 // Nøglen er den offentlige "publishable"/"anon" nøgle, som må stå i koden. Brug aldrig "secret"/"service_role" nøglen her
-const ONLINE_URL = "";         // fx "https://abcdefgh.supabase.co"
-const ONLINE_KEY = "";         // fx "sb_publishable_..."
+const ONLINE_URL = "https://wgsvzcwpoxlxgrqscedl.supabase.co";
+const ONLINE_KEY = "sb_publishable__XuYWX-pxsv6UjAjifM8Jg_nIJWZi3-";
 const ONLINE_TABLE = "scores"; // tabellen med spil
 
 // Special frugter (power-ups)
