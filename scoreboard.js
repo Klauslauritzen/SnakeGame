@@ -1,13 +1,20 @@
-// ---- Top-lister med navne (gemmes i browserens localStorage) ----
+// ---- Top-lister med navne (gemmes i browserens localStorage, og online hvis ONLINE_URL er sat) ----
 // Hver post har navn, point, frugter, fugle, power-ups, special frugter, længste combo og tid.
 // Der er fire lister, og man skifter mellem dem ved at klikke på fanerne. Alle viser alle tal.
-// Vi gemmer de poster, der er med i top 100 på mindst én af listerne
+// Vi gemmer de poster, der er med i top 100 på mindst én af listerne.
+// Online er listen fælles for alle spillere. Den lokale kopi vises med det samme, og den online liste
+// erstatter den, når den er hentet. Virker nettet ikke, bruges den lokale liste
 class Scoreboard {
   constructor() {
     this.entries = this.load();
     this.boardIndex = 0;   // hvilken liste der vises lige nu
     this.lastEntry = null; // det spil man lige har spillet, så det kan fremhæves i listerne
     this.lastPlacement = null; // dets bedste placering: { boardIndex, rank }, eller null hvis det ikke kom med
+    this.onChange = null;  // kaldes, når den online liste er hentet, så den kan tegnes igen
+  }
+
+  get isOnline() {
+    return Boolean(ONLINE_URL && ONLINE_KEY);
   }
 
   get board() {
@@ -17,25 +24,29 @@ class Scoreboard {
   load() {
     try {
       const data = JSON.parse(localStorage.getItem(SCOREBOARD_KEY));
-      if (Array.isArray(data)) {
-        // ældre poster mangler nogle tal, så de får 0
-        return data.map(entry => ({
-          name: String(entry.name),
-          score: Number(entry.score) || 0,
-          fruits: Number(entry.fruits) || 0,
-          birds: Number(entry.birds) || 0,
-          powerups: Number(entry.powerups) || 0,
-          specials: Number(entry.specials) || 0,
-          combo: Number(entry.combo) || 0,
-          time: Number(entry.time) || 0,
-        }));
-      }
+      if (Array.isArray(data)) return data.map(Scoreboard.clean);
       // en gammel enkelt rekord flyttes over, så den ikke går tabt
       const old = parseInt(localStorage.getItem(OLD_HIGH_SCORE_KEY), 10);
       return old > 0 ? [{ name: "Ukendt", score: old, fruits: 0, birds: 0, powerups: 0, specials: 0, combo: 0, time: 0 }] : [];
     } catch (e) {
       return [];
     }
+  }
+
+  // En post med de rigtige typer. Ældre poster mangler nogle tal, så de får 0. id findes kun på online poster
+  static clean(entry) {
+    const clean = {
+      name: String(entry.name),
+      score: Number(entry.score) || 0,
+      fruits: Number(entry.fruits) || 0,
+      birds: Number(entry.birds) || 0,
+      powerups: Number(entry.powerups) || 0,
+      specials: Number(entry.specials) || 0,
+      combo: Number(entry.combo) || 0,
+      time: Number(entry.time) || 0,
+    };
+    if (entry.id != null) clean.id = entry.id;
+    return clean;
   }
 
   save() {
@@ -71,6 +82,52 @@ class Scoreboard {
     this.lastPlacement = this.placementOf(entry);
     this.boardIndex = this.lastPlacement ? this.lastPlacement.boardIndex : 0;
     this.save();
+    this.upload(entry);
+  }
+
+  // ---- Online ----
+  // Kald til Supabase. Den nye "publishable" nøgle sendes kun som apikey, den gamle "anon" nøgle også som Authorization
+  request(query, options = {}) {
+    const headers = { apikey: ONLINE_KEY, "Content-Type": "application/json", ...options.headers };
+    if (ONLINE_KEY.startsWith("eyJ")) headers.Authorization = `Bearer ${ONLINE_KEY}`;
+    return fetch(`${ONLINE_URL}/rest/v1/${ONLINE_TABLE}${query}`, { ...options, headers }).then(res => {
+      if (!res.ok) throw new Error(`Top-listen svarede ${res.status}`);
+      return res.json();
+    });
+  }
+
+  // Henter top 100 på hver af de fire lister og lægger dem sammen
+  refresh() {
+    if (!this.isOnline) return Promise.resolve();
+    const fields = "id,name,score,fruits,birds,powerups,specials,combo,time";
+    const lists = Scoreboard.BOARDS.map(board =>
+      this.request(`?select=${fields}&order=${board.stat}.desc,score.desc&limit=${SCOREBOARD_MAX}`)
+    );
+    return Promise.all(lists)
+      .then(results => {
+        const byId = new Map();
+        results.flat().forEach(entry => byId.set(entry.id, Scoreboard.clean(entry)));
+        // det seneste spil skal stadig kunne fremhæves, så det beholder sin plads blandt de nye poster
+        const last = this.lastEntry;
+        if (last && last.id != null && byId.has(last.id)) byId.set(last.id, last);
+        this.entries = [...byId.values()];
+        if (last && last.id == null) this.entries.push(last); // er endnu ikke sendt
+        this.save();
+        if (this.onChange) this.onChange();
+      })
+      .catch(err => console.warn("Kunne ikke hente den fælles top-liste:", err));
+  }
+
+  // Sender et spil til den fælles liste og henter listen igen bagefter
+  upload(entry) {
+    if (!this.isOnline) return;
+    const { id, ...row } = entry;
+    this.request("", { method: "POST", headers: { Prefer: "return=representation" }, body: JSON.stringify(row) })
+      .then(([saved]) => {
+        entry.id = saved.id;
+        return this.refresh();
+      })
+      .catch(err => console.warn("Kunne ikke gemme spillet på den fælles top-liste:", err));
   }
 
   // Placeringen i top 100 på den liste, hvor posten står bedst: { boardIndex, rank }, hvor rank 1 er bedst.

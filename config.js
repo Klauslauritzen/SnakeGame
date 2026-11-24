@@ -17,6 +17,12 @@ const SCOREBOARD_SIZE = 5;     // antal navne på den korte top-liste
 const SCOREBOARD_MAX = 100;    // antal spil der gemmes pr. liste og kan ses i den fulde liste
 const OLD_HIGH_SCORE_KEY = "snake-highscore"; // kun til at flytte en gammel enkelt rekord over
 
+// Fælles top-liste online (Supabase). Står de tomme, bruges kun den lokale liste i browseren.
+// Nøglen er den offentlige "publishable"/"anon" nøgle, som må stå i koden. Brug aldrig "secret"/"service_role" nøglen her
+const ONLINE_URL = "";         // fx "https://abcdefgh.supabase.co"
+const ONLINE_KEY = "";         // fx "sb_publishable_..."
+const ONLINE_TABLE = "scores"; // tabellen med spil
+
 // Special frugter (power-ups)
 const BONUS_CHANCE = 0.25;     // sandsynlighed for at en special frugt kommer med et nyt æble (efter introduktionen)
 // Introduktion i starten af et spil, så man bliver vænnet til special frugter og power-ups:

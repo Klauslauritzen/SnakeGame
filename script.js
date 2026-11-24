@@ -40,6 +40,7 @@ menu.onBackToMenu(() => {
   game.stop();
   menu.showMenu();
   scoreboardView.render(scoreboard);
+  scoreboard.refresh(); // andres nye spil kommer med
 });
 
 // fanerne på top-listen skifter liste, og søgefeltet filtrerer den fulde liste
@@ -93,3 +94,7 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 scoreboardView.render(scoreboard);
+
+// Den fælles top-liste hentes ved start, og listerne tegnes igen, hver gang den er hentet
+scoreboard.onChange = () => scoreboardView.render(scoreboard);
+scoreboard.refresh();
