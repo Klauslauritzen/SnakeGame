@@ -88,6 +88,7 @@ const BIRD_MAX_LIFETIME = 10000; // ms en fugl bliver på banen (max)
 const BIRD_MIN_INTERVAL = 4000;  // ms mellem fugle der dukker op (min)
 const BIRD_MAX_INTERVAL = 9000;  // ms mellem fugle der dukker op (max)
 const MAX_BIRDS = 3;             // højst så mange fugle på banen ad gangen
+const MAX_BIRDS_WITH_STAR = 4;   // stjernen giver en ekstra fugl, men kun hvis der er færre end så mange fugle
 const BIRD_MIN_DISTANCE = 3;     // en ny fugl dukker op mindst så mange felter fra hovedet (også rundt om kanten)
 const BIRD_COLORS = {
   red: { body: "#e63946", wing: "#9d0208", beak: "#ffb703" },

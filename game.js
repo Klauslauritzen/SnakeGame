@@ -139,7 +139,8 @@ class Game {
   // Lægger en special frugt eller power-up på banen. Der kan ligge flere på samme tid.
   // kind er "fruit", "powerup" eller ikke angivet (så afgør chancerne)
   spawnBonus(kind) {
-    this.powerups.spawn(this.randomFreeCell(), this.settings.powerupsOn, kind);
+    const bonus = this.powerups.spawn(this.randomFreeCell(), this.settings.powerupsOn, kind);
+    if (bonus.type === "star") this.spawnStarBird();
   }
 
   // Kaldes når et æble er spist. Hvert æble kan give én special frugt eller power-up.
@@ -178,6 +179,14 @@ class Game {
       return this.settings.walls ? d : Math.min(d, GRID_SIZE - d);
     };
     return Math.max(gap(cell.x, head.x), gap(cell.y, head.y)) >= BIRD_MIN_DISTANCE;
+  }
+
+  // En ekstra fugl, når stjernen dukker op, og igen når man tager den, så der altid er en fugl at spise.
+  // Den kommer kun, hvis der er færre end MAX_BIRDS_WITH_STAR fugle, og aldrig på sværhed "Ingen"
+  spawnStarBird() {
+    if (this.birds.settings.maxBirds === 0) return;
+    if (this.birds.list.length >= MAX_BIRDS_WITH_STAR) return;
+    this.spawnBird();
   }
 
   spawnBird() {
@@ -300,6 +309,7 @@ class Game {
     this.score.powerups += 1;
     if (type === "shrink") this.snake.shrink(SHRINK_AMOUNT);
     else this.powerups.activate(type);
+    if (type === "star") this.spawnStarBird();
     if (type === "slow") this.startTimer(); // tag den nye fart i brug med det samme
 
     this.effects.burstAtCell(at, BONUS_FRUITS[type].color, 14);
