@@ -107,6 +107,8 @@ const KEY_DIRECTIONS = {
 // Telefon eller tablet: styres med swipe og knapper i stedet for piletaster
 const IS_TOUCH = window.matchMedia("(hover: none) and (pointer: coarse)").matches;
 const SWIPE_MIN_PX = 24; // så langt fingeren skal flytte sig, før det tæller som et swipe
+// Så længe (ms) efter game over ignoreres Mellemrum og Enter, så et tryk fra lige før man døde, ikke starter et nyt spil
+const RESTART_KEY_DELAY_MS = 500;
 
 // Midten af en celle i pixels
 function cellCenterPx(n) {

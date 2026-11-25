@@ -1247,6 +1247,7 @@ canvas.fireworks.active {
         <button id="restart-btn">Spil igen</button>
         <button id="menu-btn">Tilbage til menu</button>
       </div>
+      <p class="hint hint-keys restart-hint">Tryk <kbd>Mellemrum</kbd> eller <kbd>Enter</kbd> for at spille igen</p>
     </div>
   </div>
 
@@ -1268,7 +1269,7 @@ canvas.fireworks.active {
 <!-- Fyrværkeri: dækker hele siden, ligger øverst og tager ikke imod klik -->
 <canvas id="fireworks" class="fireworks"></canvas>
 
-<!-- ?v=6 tvinger browseren til at hente filerne på ny. Hæv tallet (overalt, også i style.css-linket) ved hver opdatering -->
+<!-- ?v=7 tvinger browseren til at hente filerne på ny. Hæv tallet (overalt, også i style.css-linket) ved hver opdatering -->
 <script>
 // ---- Konstanter for hele spillet ----
 
@@ -1379,6 +1380,8 @@ const KEY_DIRECTIONS = {
 // Telefon eller tablet: styres med swipe og knapper i stedet for piletaster
 const IS_TOUCH = window.matchMedia("(hover: none) and (pointer: coarse)").matches;
 const SWIPE_MIN_PX = 24; // så langt fingeren skal flytte sig, før det tæller som et swipe
+// Så længe (ms) efter game over ignoreres Mellemrum og Enter, så et tryk fra lige før man døde, ikke starter et nyt spil
+const RESTART_KEY_DELAY_MS = 500;
 
 // Midten af en celle i pixels
 function cellCenterPx(n) {
@@ -3310,6 +3313,15 @@ class Menu {
     this.finalStatsEl.textContent = `Længste combo: ${stats.combo}\n${ScoreboardView.describe(stats)[1]}`;
     document.body.classList.remove("in-game");
     this.showScreen("gameover");
+    this.gameOverAt = performance.now();
+  }
+
+  // Game over-skærmen er fremme, ingen pop-up er åben, og den har stået lidt,
+  // så et tastetryk fra lige før man døde, ikke starter et nyt spil med det samme
+  get canRestartByKey() {
+    const shown = !document.getElementById("gameover-screen").classList.contains("hidden");
+    const modalOpen = document.querySelector(".modal:not(.hidden)");
+    return shown && !modalOpen && performance.now() - this.gameOverAt > RESTART_KEY_DELAY_MS;
   }
 
   // ---- Indstillinger ----
@@ -3811,6 +3823,13 @@ document.addEventListener("keydown", (e) => {
   // M slår lyden til eller fra (ikke når man skriver navn)
   if (e.key.toLowerCase() === "m" && e.target.tagName !== "INPUT") {
     soundButton.toggle();
+    return;
+  }
+
+  // Mellemrum eller Enter på game over-skærmen starter et nyt spil med samme navn og indstillinger
+  if ((e.code === "Space" || e.key === "Enter") && !e.repeat && menu.canRestartByKey) {
+    e.preventDefault(); // ellers trykker Enter også på den knap, der har fokus
+    startGame();
     return;
   }
 

@@ -251,6 +251,15 @@ class Menu {
     this.finalStatsEl.textContent = `Længste combo: ${stats.combo}\n${ScoreboardView.describe(stats)[1]}`;
     document.body.classList.remove("in-game");
     this.showScreen("gameover");
+    this.gameOverAt = performance.now();
+  }
+
+  // Game over-skærmen er fremme, ingen pop-up er åben, og den har stået lidt,
+  // så et tastetryk fra lige før man døde, ikke starter et nyt spil med det samme
+  get canRestartByKey() {
+    const shown = !document.getElementById("gameover-screen").classList.contains("hidden");
+    const modalOpen = document.querySelector(".modal:not(.hidden)");
+    return shown && !modalOpen && performance.now() - this.gameOverAt > RESTART_KEY_DELAY_MS;
   }
 
   // ---- Indstillinger ----

@@ -76,6 +76,13 @@ document.addEventListener("keydown", (e) => {
     return;
   }
 
+  // Mellemrum eller Enter på game over-skærmen starter et nyt spil med samme navn og indstillinger
+  if ((e.code === "Space" || e.key === "Enter") && !e.repeat && menu.canRestartByKey) {
+    e.preventDefault(); // ellers trykker Enter også på den knap, der har fokus
+    startGame();
+    return;
+  }
+
   if (e.code === "Space") {
     if (game.isRunning && !game.waitingForStart) {
       e.preventDefault();
