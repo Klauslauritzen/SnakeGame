@@ -83,6 +83,39 @@ document.addEventListener("keydown", (e) => {
   game.steer(dir);
 });
 
+// ---- Telefon: pileknapper og swipe ----
+// Knapperne reagerer på pointerdown, så slangen drejer i samme øjeblik fingeren rammer
+document.querySelectorAll(".pad[data-dir]").forEach(btn => {
+  btn.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    if (game.isRunning) game.steer(btn.dataset.dir);
+  });
+});
+document.getElementById("pause-btn").addEventListener("pointerdown", (e) => {
+  e.preventDefault();
+  game.togglePause();
+});
+
+// Swipe på banen: når fingeren har flyttet sig SWIPE_MIN_PX, drejer slangen den vej.
+// Startpunktet flyttes med, så man kan swipe flere gange uden at løfte fingeren
+const canvas = document.getElementById("game-canvas");
+let swipeStart = null;
+canvas.addEventListener("pointerdown", (e) => {
+  swipeStart = { x: e.clientX, y: e.clientY };
+});
+canvas.addEventListener("pointermove", (e) => {
+  if (!swipeStart || !game.isRunning) return;
+  const dx = e.clientX - swipeStart.x;
+  const dy = e.clientY - swipeStart.y;
+  if (Math.max(Math.abs(dx), Math.abs(dy)) < SWIPE_MIN_PX) return;
+  const dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "RIGHT" : "LEFT") : (dy > 0 ? "DOWN" : "UP");
+  game.steer(dir);
+  swipeStart = { x: e.clientX, y: e.clientY };
+});
+["pointerup", "pointercancel", "pointerleave"].forEach(type =>
+  canvas.addEventListener(type, () => { swipeStart = null; })
+);
+
 // ---- Render-loop: tegner med skærmens hastighed, så partikler bevæger sig jævnt ----
 let lastFrameTime = 0;
 function frame(now) {

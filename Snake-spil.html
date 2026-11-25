@@ -184,6 +184,49 @@ canvas {
   color: #aaa;
 }
 
+/* Banen bliver mindre på smalle skærme, men tegnes stadig i 400x400 */
+#game-canvas {
+  max-width: 100%;
+  height: auto;
+  touch-action: none; /* swipe på banen må ikke rulle siden */
+}
+
+/* ---- Telefon: pileknapper under banen. Vises kun på touch-skærme ---- */
+.touch-controls,
+.hint-touch {
+  display: none;
+}
+
+.touch-controls {
+  grid-template-columns: repeat(3, 64px);
+  grid-template-rows: repeat(3, 56px);
+  gap: 6px;
+  justify-content: center;
+  margin: 12px auto 0;
+}
+
+.pad {
+  margin: 0;
+  padding: 0;
+  font-size: 22px;
+  border-radius: 12px;
+  touch-action: manipulation; /* ingen zoom ved dobbelttryk */
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.pad-up { grid-area: 1 / 2; }
+.pad-left { grid-area: 2 / 1; }
+.pad-pause { grid-area: 2 / 2; font-size: 16px; background: #3a3a5c; color: #eee; }
+.pad-right { grid-area: 2 / 3; }
+.pad-down { grid-area: 3 / 2; }
+
+@media (hover: none) and (pointer: coarse) {
+  .touch-controls { display: grid; }
+  .hint-touch { display: block; }
+  .hint-keys { display: none; }
+}
+
 /* Regler-pop-up */
 .modal {
   position: fixed;
@@ -742,6 +785,68 @@ canvas.fireworks.active {
   color: #e94560;
 }
 
+/* Står sidst, så reglerne her vinder over de almindelige regler ovenfor */
+/* ---- Smal skærm: alt skaleres ned til telefonens bredde ---- */
+@media (max-width: 560px) {
+  body {
+    align-items: flex-start;
+  }
+
+  .game-container {
+    width: 100%;
+    padding: 60px 10px 16px; /* plads til knapperne i hjørnerne */
+  }
+
+  h1 {
+    margin-top: 0;
+    font-size: 26px;
+  }
+
+  #menu-screen,
+  #gameover-screen {
+    padding: 16px 12px;
+  }
+
+  .option-row {
+    grid-template-columns: 78px 1fr 1fr 1fr;
+    font-size: 13px;
+  }
+
+  .name-row {
+    grid-template-columns: 78px 1fr;
+  }
+
+  .hud {
+    width: 100%;
+    font-size: 13px;
+  }
+
+  /* Top-listen: navnet står på sin egen linje over tallene */
+  .board-list {
+    min-height: calc(5 * 66px);
+    padding-left: 20px;
+  }
+
+  .board-list li {
+    height: auto;
+    min-height: 44px;
+  }
+
+  .lb-row {
+    flex-wrap: wrap;
+    gap: 0 8px;
+  }
+
+  .lb-name {
+    flex-basis: 100%;
+  }
+
+  .lb-main {
+    white-space: normal;
+    font-size: 13px;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -889,7 +994,17 @@ canvas.fireworks.active {
       <div id="status-row" class="status-row"></div>
       <div id="bonus-panel" class="bonus-panel"></div>
       <canvas id="game-canvas" width="400" height="400"></canvas>
-      <p class="hint">Brug piletasterne til at styre slangen. Tryk <kbd>Mellemrum</kbd> for pause.</p>
+      <p class="hint hint-keys">Brug piletasterne til at styre slangen. Tryk <kbd>Mellemrum</kbd> for pause.</p>
+
+      <!-- Styring på telefon: vises kun på touch-skærme. Man kan også swipe på banen -->
+      <div class="touch-controls">
+        <button class="pad pad-up" data-dir="UP" aria-label="Op">▲</button>
+        <button class="pad pad-left" data-dir="LEFT" aria-label="Venstre">◀</button>
+        <button class="pad pad-pause" id="pause-btn" aria-label="Pause">❚❚</button>
+        <button class="pad pad-right" data-dir="RIGHT" aria-label="Højre">▶</button>
+        <button class="pad pad-down" data-dir="DOWN" aria-label="Ned">▼</button>
+      </div>
+      <p class="hint hint-touch">Swipe på banen eller brug pilene. ❚❚ sætter spillet på pause.</p>
     </div>
 
     <!-- Game over -->
@@ -928,7 +1043,7 @@ canvas.fireworks.active {
 <!-- Fyrværkeri: dækker hele siden, ligger øverst og tager ikke imod klik -->
 <canvas id="fireworks" class="fireworks"></canvas>
 
-<!-- ?v=2 tvinger browseren til at hente filerne på ny. Hæv tallet (overalt, også i style.css-linket) ved hver opdatering -->
+<!-- ?v=3 tvinger browseren til at hente filerne på ny. Hæv tallet (overalt, også i style.css-linket) ved hver opdatering -->
 <script>
 // ---- Konstanter for hele spillet ----
 
@@ -1035,6 +1150,10 @@ const KEY_DIRECTIONS = {
   ArrowLeft: "LEFT",
   ArrowRight: "RIGHT",
 };
+
+// Telefon eller tablet: styres med swipe og knapper i stedet for piletaster
+const IS_TOUCH = window.matchMedia("(hover: none) and (pointer: coarse)").matches;
+const SWIPE_MIN_PX = 24; // så langt fingeren skal flytte sig, før det tæller som et swipe
 
 // Midten af en celle i pixels
 function cellCenterPx(n) {
@@ -2105,7 +2224,8 @@ class Renderer {
 
     // start-overlay: slangen står stille, indtil man trykker på en piletast
     if (game.waitingForStart) {
-      this.drawOverlay("rgba(15, 15, 26, 0.5)", "bold 18px", "Tryk på en piletast for at starte");
+      const startText = IS_TOUCH ? "Swipe eller tryk på en pil" : "Tryk på en piletast for at starte";
+      this.drawOverlay("rgba(15, 15, 26, 0.5)", "bold 18px", startText);
     }
 
     // pause-overlay
@@ -3436,6 +3556,39 @@ document.addEventListener("keydown", (e) => {
   e.preventDefault();
   game.steer(dir);
 });
+
+// ---- Telefon: pileknapper og swipe ----
+// Knapperne reagerer på pointerdown, så slangen drejer i samme øjeblik fingeren rammer
+document.querySelectorAll(".pad[data-dir]").forEach(btn => {
+  btn.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    if (game.isRunning) game.steer(btn.dataset.dir);
+  });
+});
+document.getElementById("pause-btn").addEventListener("pointerdown", (e) => {
+  e.preventDefault();
+  game.togglePause();
+});
+
+// Swipe på banen: når fingeren har flyttet sig SWIPE_MIN_PX, drejer slangen den vej.
+// Startpunktet flyttes med, så man kan swipe flere gange uden at løfte fingeren
+const canvas = document.getElementById("game-canvas");
+let swipeStart = null;
+canvas.addEventListener("pointerdown", (e) => {
+  swipeStart = { x: e.clientX, y: e.clientY };
+});
+canvas.addEventListener("pointermove", (e) => {
+  if (!swipeStart || !game.isRunning) return;
+  const dx = e.clientX - swipeStart.x;
+  const dy = e.clientY - swipeStart.y;
+  if (Math.max(Math.abs(dx), Math.abs(dy)) < SWIPE_MIN_PX) return;
+  const dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "RIGHT" : "LEFT") : (dy > 0 ? "DOWN" : "UP");
+  game.steer(dir);
+  swipeStart = { x: e.clientX, y: e.clientY };
+});
+["pointerup", "pointercancel", "pointerleave"].forEach(type =>
+  canvas.addEventListener(type, () => { swipeStart = null; })
+);
 
 // ---- Render-loop: tegner med skærmens hastighed, så partikler bevæger sig jævnt ----
 let lastFrameTime = 0;

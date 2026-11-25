@@ -104,6 +104,10 @@ const KEY_DIRECTIONS = {
   ArrowRight: "RIGHT",
 };
 
+// Telefon eller tablet: styres med swipe og knapper i stedet for piletaster
+const IS_TOUCH = window.matchMedia("(hover: none) and (pointer: coarse)").matches;
+const SWIPE_MIN_PX = 24; // så langt fingeren skal flytte sig, før det tæller som et swipe
+
 // Midten af en celle i pixels
 function cellCenterPx(n) {
   return n * CELL + CELL / 2;

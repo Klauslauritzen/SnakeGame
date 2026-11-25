@@ -95,7 +95,8 @@ class Renderer {
 
     // start-overlay: slangen står stille, indtil man trykker på en piletast
     if (game.waitingForStart) {
-      this.drawOverlay("rgba(15, 15, 26, 0.5)", "bold 18px", "Tryk på en piletast for at starte");
+      const startText = IS_TOUCH ? "Swipe eller tryk på en pil" : "Tryk på en piletast for at starte";
+      this.drawOverlay("rgba(15, 15, 26, 0.5)", "bold 18px", startText);
     }
 
     // pause-overlay
