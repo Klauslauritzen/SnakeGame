@@ -162,6 +162,8 @@ class Menu {
       gameover: document.getElementById("gameover-screen"),
     };
     this.nameInput = document.getElementById("player-name");
+    // den røde ring forsvinder, så snart man skriver noget
+    this.nameInput.addEventListener("input", () => this.nameInput.classList.remove("name-missing"));
     this.wallsToggle = document.getElementById("walls-toggle");
     this.finalScoreEl = document.getElementById("final-score");
     this.finalFruitsEl = document.getElementById("final-fruits");
@@ -231,10 +233,13 @@ class Menu {
     return document.querySelector(`[data-group="${group}"] input:checked`).value;
   }
 
-  // Læser alle indstillinger. Uden navn får navnefeltet fokus, og der returneres null
+  // Læser alle indstillinger. Uden navn får navnefeltet fokus og en rød ring, der ryster, og der returneres null
   readSettings() {
     const name = this.nameInput.value.trim();
     if (!name) {
+      this.nameInput.classList.remove("name-missing");
+      void this.nameInput.offsetWidth; // så rystelsen starter forfra ved hvert klik
+      this.nameInput.classList.add("name-missing");
       this.nameInput.focus();
       return null;
     }

@@ -528,6 +528,23 @@ canvas.fireworks.active {
   border: none;
 }
 
+/* Rød ring, når man trykker Start spil uden at have skrevet et navn */
+#player-name.name-missing {
+  outline: none;
+  box-shadow: 0 0 0 3px #e63946;
+  animation: name-shake 0.35s;
+}
+
+#player-name.name-missing::placeholder {
+  color: #e63946;
+}
+
+@keyframes name-shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
+}
+
 /* Top-listen står i sin egen boks. Med pilene bladrer man mellem listerne */
 .scoreboard {
   box-sizing: border-box;
