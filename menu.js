@@ -73,6 +73,31 @@ class ScoreboardView {
     });
   }
 
+  // Kontakten ved overskriften skifter mellem computerens og telefonens top-liste. Den valgte er grøn
+  renderDevice(navEl, scoreboard) {
+    if (!navEl) return;
+    let device = navEl.querySelector(".board-device");
+    if (!device) {
+      device = document.createElement("div");
+      device.className = "board-device";
+      device.setAttribute("role", "group");
+      device.setAttribute("aria-label", "Top-liste for computer eller telefon");
+      [["false", "💻", "Computer"], ["true", "📱", "Telefon"]].forEach(([value, icon, label]) => {
+        const btn = document.createElement("button");
+        btn.dataset.mobile = value;
+        btn.title = `Top-listen for ${label.toLowerCase()}`;
+        btn.textContent = `${icon} ${label}`;
+        device.appendChild(btn);
+      });
+      navEl.appendChild(device);
+    }
+    device.querySelectorAll("button").forEach(btn => {
+      const active = (btn.dataset.mobile === "true") === scoreboard.mobile;
+      btn.classList.toggle("active", active);
+      btn.setAttribute("aria-pressed", String(active));
+    });
+  }
+
   // Bruger textContent, så navne ikke kan indsætte HTML
   render(scoreboard) {
     const board = scoreboard.board;
@@ -83,6 +108,7 @@ class ScoreboardView {
       const entries = scoreboard.topFor(board, limit, filter);
 
       root.querySelector(".board-title").textContent = board.title;
+      this.renderDevice(root.querySelector(".board-nav"), scoreboard);
       this.renderTabs(root.querySelector(".board-tabs"), scoreboard);
       const list = root.querySelector(".board-list");
       list.replaceChildren();

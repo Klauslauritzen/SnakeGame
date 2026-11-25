@@ -641,6 +641,41 @@ canvas.fireworks.active {
   text-align: center;
 }
 
+/* Kontakten ved overskriften: computerens eller telefonens top-liste */
+.board-nav {
+  flex-wrap: wrap;
+  gap: 6px 12px;
+}
+
+.board-device {
+  display: inline-flex;
+  border: 1px solid #3a3a5c;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.board-device button {
+  margin: 0;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: normal;
+  color: #bbb;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
+.board-device button:hover {
+  background: #2a2a48;
+}
+
+.board-device button.active,
+.board-device button.active:hover {
+  font-weight: bold;
+  color: #1a1a2e;
+  background: #4ecca3;
+}
+
 /* Fanerne viser, hvilken side på top-listen man er på: den valgte har grøn baggrund og fed skrift */
 .board-tabs {
   display: flex;
@@ -1233,7 +1268,7 @@ canvas.fireworks.active {
 <!-- Fyrværkeri: dækker hele siden, ligger øverst og tager ikke imod klik -->
 <canvas id="fireworks" class="fireworks"></canvas>
 
-<!-- ?v=5 tvinger browseren til at hente filerne på ny. Hæv tallet (overalt, også i style.css-linket) ved hver opdatering -->
+<!-- ?v=6 tvinger browseren til at hente filerne på ny. Hæv tallet (overalt, også i style.css-linket) ved hver opdatering -->
 <script>
 // ---- Konstanter for hele spillet ----
 
@@ -1601,6 +1636,9 @@ class Scoreboard {
   constructor() {
     this.entries = this.load();
     this.boardIndex = 0;   // hvilken liste der vises lige nu
+    // Telefon og computer har hver sin top-liste, for det er sværere at spille på telefon.
+    // Man ser sin egen enheds liste først, men kan skifte til den anden
+    this.mobile = IS_TOUCH;
     this.lastEntry = null; // det spil man lige har spillet, så det kan fremhæves i listerne
     this.lastPlacement = null; // dets bedste placering: { boardIndex, rank }, eller null hvis det ikke kom med
     this.onChange = null;  // kaldes, når den online liste er hentet, så den kan tegnes igen
@@ -1637,6 +1675,7 @@ class Scoreboard {
       specials: Number(entry.specials) || 0,
       combo: Number(entry.combo) || 0,
       time: Number(entry.time) || 0,
+      mobile: entry.mobile === true, // ældre poster uden mobile hører til computerlisten
     };
     if (entry.id != null) clean.id = entry.id;
     return clean;
@@ -1650,11 +1689,17 @@ class Scoreboard {
     }
   }
 
-  // De bedste på en liste. Med nameFilter vises kun spillere, hvis navn indeholder teksten (uden store/små bogstaver)
-  topFor(board, limit = SCOREBOARD_SIZE, nameFilter = "") {
+  // De bedste på en liste for telefon eller computer (som standard den, der vises nu).
+  // Med nameFilter vises kun spillere, hvis navn indeholder teksten (uden store/små bogstaver)
+  topFor(board, limit = SCOREBOARD_SIZE, nameFilter = "", mobile = this.mobile) {
     const needle = nameFilter.trim().toLowerCase();
-    const pool = needle ? this.entries.filter(e => e.name.toLowerCase().includes(needle)) : this.entries;
-    return [...pool].sort(board.sort).slice(0, limit);
+    const pool = this.entries.filter(e => e.mobile === mobile && (!needle || e.name.toLowerCase().includes(needle)));
+    return pool.sort(board.sort).slice(0, limit);
+  }
+
+  // Skifter mellem telefonens og computerens top-liste
+  setDevice(mobile) {
+    this.mobile = mobile;
   }
 
   // Gemmer et spil. Posten beholdes, hvis den er med i top 100 for point, frugter, tid eller combo.
@@ -1667,10 +1712,13 @@ class Scoreboard {
       return;
     }
     // tal der mangler, bliver 0, så sorteringen altid virker
-    const entry = { name, score: 0, fruits: 0, birds: 0, powerups: 0, specials: 0, combo: 0, time: 0, ...stats };
+    const entry = { name, score: 0, fruits: 0, birds: 0, powerups: 0, specials: 0, combo: 0, time: 0, ...stats, mobile: IS_TOUCH };
     this.entries.push(entry);
     this.lastEntry = entry;
-    const keep = new Set(Scoreboard.BOARDS.flatMap(board => this.topFor(board, SCOREBOARD_MAX)));
+    this.mobile = IS_TOUCH; // efter spillet vises listen for den enhed, man spillede på
+    const keep = new Set(Scoreboard.BOARDS.flatMap(board =>
+      [false, true].flatMap(mobile => this.topFor(board, SCOREBOARD_MAX, "", mobile))
+    ));
     this.entries = this.entries.filter(e => keep.has(e));
     this.lastPlacement = this.placementOf(entry);
     this.boardIndex = this.lastPlacement ? this.lastPlacement.boardIndex : 0;
@@ -1689,13 +1737,13 @@ class Scoreboard {
     });
   }
 
-  // Henter top 100 på hver af de fire lister og lægger dem sammen
+  // Henter top 100 på hver af de fire lister, for både telefon og computer, og lægger dem sammen
   refresh() {
     if (!this.isOnline) return Promise.resolve();
-    const fields = "id,name,score,fruits,birds,powerups,specials,combo,time";
-    const lists = Scoreboard.BOARDS.map(board =>
-      this.request(`?select=${fields}&order=${board.stat}.desc,score.desc&limit=${SCOREBOARD_MAX}`)
-    );
+    const fields = "id,name,score,fruits,birds,powerups,specials,combo,time,mobile";
+    const lists = Scoreboard.BOARDS.flatMap(board => [false, true].map(mobile =>
+      this.request(`?select=${fields}&mobile=eq.${mobile}&order=${board.stat}.desc,score.desc&limit=${SCOREBOARD_MAX}`)
+    ));
     return Promise.all(lists)
       .then(results => {
         const byId = new Map();
@@ -3084,6 +3132,31 @@ class ScoreboardView {
     });
   }
 
+  // Kontakten ved overskriften skifter mellem computerens og telefonens top-liste. Den valgte er grøn
+  renderDevice(navEl, scoreboard) {
+    if (!navEl) return;
+    let device = navEl.querySelector(".board-device");
+    if (!device) {
+      device = document.createElement("div");
+      device.className = "board-device";
+      device.setAttribute("role", "group");
+      device.setAttribute("aria-label", "Top-liste for computer eller telefon");
+      [["false", "💻", "Computer"], ["true", "📱", "Telefon"]].forEach(([value, icon, label]) => {
+        const btn = document.createElement("button");
+        btn.dataset.mobile = value;
+        btn.title = `Top-listen for ${label.toLowerCase()}`;
+        btn.textContent = `${icon} ${label}`;
+        device.appendChild(btn);
+      });
+      navEl.appendChild(device);
+    }
+    device.querySelectorAll("button").forEach(btn => {
+      const active = (btn.dataset.mobile === "true") === scoreboard.mobile;
+      btn.classList.toggle("active", active);
+      btn.setAttribute("aria-pressed", String(active));
+    });
+  }
+
   // Bruger textContent, så navne ikke kan indsætte HTML
   render(scoreboard) {
     const board = scoreboard.board;
@@ -3094,6 +3167,7 @@ class ScoreboardView {
       const entries = scoreboard.topFor(board, limit, filter);
 
       root.querySelector(".board-title").textContent = board.title;
+      this.renderDevice(root.querySelector(".board-nav"), scoreboard);
       this.renderTabs(root.querySelector(".board-tabs"), scoreboard);
       const list = root.querySelector(".board-list");
       list.replaceChildren();
@@ -3711,6 +3785,13 @@ menu.onBackToMenu(() => {
 document.addEventListener("click", (e) => {
   // når top 100 åbnes, ruller listen hen til det spil, man lige har spillet
   if (e.target.closest(".board-more")) scoreboardView.scrollToCurrent();
+  // kontakten skifter mellem computerens og telefonens liste
+  const deviceBtn = e.target.closest(".board-device button");
+  if (deviceBtn) {
+    scoreboard.setDevice(deviceBtn.dataset.mobile === "true");
+    scoreboardView.render(scoreboard);
+    return;
+  }
   const tab = e.target.closest(".board-tab");
   if (!tab) return;
   scoreboard.setBoard(Number(tab.dataset.board));

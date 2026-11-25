@@ -33,3 +33,7 @@ create policy "Alle kan tilføje et spil" on public.scores
   for insert to anon with check (true);
 
 grant select, insert on public.scores to anon;
+
+-- Tilføjet senere: telefon og computer har hver sin top-liste
+alter table public.scores add column if not exists mobile boolean not null default false;
+create index if not exists scores_mobile_score_idx on public.scores (mobile, score desc);

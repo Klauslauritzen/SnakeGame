@@ -634,6 +634,41 @@ canvas.fireworks.active {
   text-align: center;
 }
 
+/* Kontakten ved overskriften: computerens eller telefonens top-liste */
+.board-nav {
+  flex-wrap: wrap;
+  gap: 6px 12px;
+}
+
+.board-device {
+  display: inline-flex;
+  border: 1px solid #3a3a5c;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.board-device button {
+  margin: 0;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: normal;
+  color: #bbb;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
+.board-device button:hover {
+  background: #2a2a48;
+}
+
+.board-device button.active,
+.board-device button.active:hover {
+  font-weight: bold;
+  color: #1a1a2e;
+  background: #4ecca3;
+}
+
 /* Fanerne viser, hvilken side på top-listen man er på: den valgte har grøn baggrund og fed skrift */
 .board-tabs {
   display: flex;

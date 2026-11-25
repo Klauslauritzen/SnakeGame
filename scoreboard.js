@@ -8,6 +8,9 @@ class Scoreboard {
   constructor() {
     this.entries = this.load();
     this.boardIndex = 0;   // hvilken liste der vises lige nu
+    // Telefon og computer har hver sin top-liste, for det er sværere at spille på telefon.
+    // Man ser sin egen enheds liste først, men kan skifte til den anden
+    this.mobile = IS_TOUCH;
     this.lastEntry = null; // det spil man lige har spillet, så det kan fremhæves i listerne
     this.lastPlacement = null; // dets bedste placering: { boardIndex, rank }, eller null hvis det ikke kom med
     this.onChange = null;  // kaldes, når den online liste er hentet, så den kan tegnes igen
@@ -44,6 +47,7 @@ class Scoreboard {
       specials: Number(entry.specials) || 0,
       combo: Number(entry.combo) || 0,
       time: Number(entry.time) || 0,
+      mobile: entry.mobile === true, // ældre poster uden mobile hører til computerlisten
     };
     if (entry.id != null) clean.id = entry.id;
     return clean;
@@ -57,11 +61,17 @@ class Scoreboard {
     }
   }
 
-  // De bedste på en liste. Med nameFilter vises kun spillere, hvis navn indeholder teksten (uden store/små bogstaver)
-  topFor(board, limit = SCOREBOARD_SIZE, nameFilter = "") {
+  // De bedste på en liste for telefon eller computer (som standard den, der vises nu).
+  // Med nameFilter vises kun spillere, hvis navn indeholder teksten (uden store/små bogstaver)
+  topFor(board, limit = SCOREBOARD_SIZE, nameFilter = "", mobile = this.mobile) {
     const needle = nameFilter.trim().toLowerCase();
-    const pool = needle ? this.entries.filter(e => e.name.toLowerCase().includes(needle)) : this.entries;
-    return [...pool].sort(board.sort).slice(0, limit);
+    const pool = this.entries.filter(e => e.mobile === mobile && (!needle || e.name.toLowerCase().includes(needle)));
+    return pool.sort(board.sort).slice(0, limit);
+  }
+
+  // Skifter mellem telefonens og computerens top-liste
+  setDevice(mobile) {
+    this.mobile = mobile;
   }
 
   // Gemmer et spil. Posten beholdes, hvis den er med i top 100 for point, frugter, tid eller combo.
@@ -74,10 +84,13 @@ class Scoreboard {
       return;
     }
     // tal der mangler, bliver 0, så sorteringen altid virker
-    const entry = { name, score: 0, fruits: 0, birds: 0, powerups: 0, specials: 0, combo: 0, time: 0, ...stats };
+    const entry = { name, score: 0, fruits: 0, birds: 0, powerups: 0, specials: 0, combo: 0, time: 0, ...stats, mobile: IS_TOUCH };
     this.entries.push(entry);
     this.lastEntry = entry;
-    const keep = new Set(Scoreboard.BOARDS.flatMap(board => this.topFor(board, SCOREBOARD_MAX)));
+    this.mobile = IS_TOUCH; // efter spillet vises listen for den enhed, man spillede på
+    const keep = new Set(Scoreboard.BOARDS.flatMap(board =>
+      [false, true].flatMap(mobile => this.topFor(board, SCOREBOARD_MAX, "", mobile))
+    ));
     this.entries = this.entries.filter(e => keep.has(e));
     this.lastPlacement = this.placementOf(entry);
     this.boardIndex = this.lastPlacement ? this.lastPlacement.boardIndex : 0;
@@ -96,13 +109,13 @@ class Scoreboard {
     });
   }
 
-  // Henter top 100 på hver af de fire lister og lægger dem sammen
+  // Henter top 100 på hver af de fire lister, for både telefon og computer, og lægger dem sammen
   refresh() {
     if (!this.isOnline) return Promise.resolve();
-    const fields = "id,name,score,fruits,birds,powerups,specials,combo,time";
-    const lists = Scoreboard.BOARDS.map(board =>
-      this.request(`?select=${fields}&order=${board.stat}.desc,score.desc&limit=${SCOREBOARD_MAX}`)
-    );
+    const fields = "id,name,score,fruits,birds,powerups,specials,combo,time,mobile";
+    const lists = Scoreboard.BOARDS.flatMap(board => [false, true].map(mobile =>
+      this.request(`?select=${fields}&mobile=eq.${mobile}&order=${board.stat}.desc,score.desc&limit=${SCOREBOARD_MAX}`)
+    ));
     return Promise.all(lists)
       .then(results => {
         const byId = new Map();

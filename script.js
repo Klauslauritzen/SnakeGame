@@ -47,6 +47,13 @@ menu.onBackToMenu(() => {
 document.addEventListener("click", (e) => {
   // når top 100 åbnes, ruller listen hen til det spil, man lige har spillet
   if (e.target.closest(".board-more")) scoreboardView.scrollToCurrent();
+  // kontakten skifter mellem computerens og telefonens liste
+  const deviceBtn = e.target.closest(".board-device button");
+  if (deviceBtn) {
+    scoreboard.setDevice(deviceBtn.dataset.mobile === "true");
+    scoreboardView.render(scoreboard);
+    return;
+  }
   const tab = e.target.closest(".board-tab");
   if (!tab) return;
   scoreboard.setBoard(Number(tab.dataset.board));
