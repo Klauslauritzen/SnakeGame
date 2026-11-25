@@ -210,11 +210,29 @@ canvas {
 
 .pad-up { grid-area: 1 / 2; }
 .pad-left { grid-area: 2 / 1; }
-.pad-pause { grid-area: 2 / 2; font-size: 16px; background: #3a3a5c; color: #eee; }
 .pad-right { grid-area: 2 / 3; }
 .pad-down { grid-area: 3 / 2; }
 
+/* Pauseknappen står ved siden af lydknappen og vises kun under et spil på en touch-skærm */
+.pause-btn {
+  display: none;
+  position: fixed;
+  top: 12px;
+  right: 62px;
+  z-index: 5;
+  width: 40px;
+  height: 40px;
+  margin: 0;
+  padding: 0;
+  font-size: 14px;
+  border-radius: 50%;
+  background: #3a3a5c;
+  color: #eee;
+  touch-action: manipulation;
+}
+
 @media (hover: none) and (pointer: coarse) {
+  body:has(#game-screen:not(.hidden)) .pause-btn { display: block; }
   .touch-controls { display: grid; }
   .hint-touch { display: block; }
   .hint-keys { display: none; }

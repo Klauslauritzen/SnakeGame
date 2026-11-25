@@ -217,11 +217,29 @@ canvas {
 
 .pad-up { grid-area: 1 / 2; }
 .pad-left { grid-area: 2 / 1; }
-.pad-pause { grid-area: 2 / 2; font-size: 16px; background: #3a3a5c; color: #eee; }
 .pad-right { grid-area: 2 / 3; }
 .pad-down { grid-area: 3 / 2; }
 
+/* Pauseknappen står ved siden af lydknappen og vises kun under et spil på en touch-skærm */
+.pause-btn {
+  display: none;
+  position: fixed;
+  top: 12px;
+  right: 62px;
+  z-index: 5;
+  width: 40px;
+  height: 40px;
+  margin: 0;
+  padding: 0;
+  font-size: 14px;
+  border-radius: 50%;
+  background: #3a3a5c;
+  color: #eee;
+  touch-action: manipulation;
+}
+
 @media (hover: none) and (pointer: coarse) {
+  body:has(#game-screen:not(.hidden)) .pause-btn { display: block; }
   .touch-controls { display: grid; }
   .hint-touch { display: block; }
   .hint-keys { display: none; }
@@ -853,6 +871,9 @@ canvas.fireworks.active {
   <!-- Lyd til/fra: altid synlig i hjørnet -->
   <button id="sound-btn" class="sound-btn" aria-label="Lyd til eller fra">🔊</button>
 
+  <!-- Pause på telefon: oppe ved lydknappen, langt fra pilene, så man ikke rammer den ved et uheld -->
+  <button id="pause-btn" class="pause-btn" aria-label="Pause">❚❚</button>
+
   <!-- Tilbage til spilsiden på Neocities: altid synlig i det andet hjørne -->
   <a class="home-link" href="https://lauritzen.neocities.org/">← Alle spil</a>
 
@@ -1000,11 +1021,10 @@ canvas.fireworks.active {
       <div class="touch-controls">
         <button class="pad pad-up" data-dir="UP" aria-label="Op">▲</button>
         <button class="pad pad-left" data-dir="LEFT" aria-label="Venstre">◀</button>
-        <button class="pad pad-pause" id="pause-btn" aria-label="Pause">❚❚</button>
         <button class="pad pad-right" data-dir="RIGHT" aria-label="Højre">▶</button>
         <button class="pad pad-down" data-dir="DOWN" aria-label="Ned">▼</button>
       </div>
-      <p class="hint hint-touch">Swipe på banen eller brug pilene. ❚❚ sætter spillet på pause.</p>
+      <p class="hint hint-touch">Swipe på banen eller brug pilene. ❚❚ øverst sætter spillet på pause.</p>
     </div>
 
     <!-- Game over -->
@@ -1043,7 +1063,7 @@ canvas.fireworks.active {
 <!-- Fyrværkeri: dækker hele siden, ligger øverst og tager ikke imod klik -->
 <canvas id="fireworks" class="fireworks"></canvas>
 
-<!-- ?v=3 tvinger browseren til at hente filerne på ny. Hæv tallet (overalt, også i style.css-linket) ved hver opdatering -->
+<!-- ?v=4 tvinger browseren til at hente filerne på ny. Hæv tallet (overalt, også i style.css-linket) ved hver opdatering -->
 <script>
 // ---- Konstanter for hele spillet ----
 

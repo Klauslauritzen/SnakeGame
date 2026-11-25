@@ -4,11 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Snake</title>
-<link rel="stylesheet" href="style.css?v=3">
+<link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
   <!-- Lyd til/fra: altid synlig i hjørnet -->
   <button id="sound-btn" class="sound-btn" aria-label="Lyd til eller fra">🔊</button>
+
+  <!-- Pause på telefon: oppe ved lydknappen, langt fra pilene, så man ikke rammer den ved et uheld -->
+  <button id="pause-btn" class="pause-btn" aria-label="Pause">❚❚</button>
 
   <!-- Tilbage til spilsiden på Neocities: altid synlig i det andet hjørne -->
   <a class="home-link" href="https://lauritzen.neocities.org/">← Alle spil</a>
@@ -157,11 +160,10 @@
       <div class="touch-controls">
         <button class="pad pad-up" data-dir="UP" aria-label="Op">▲</button>
         <button class="pad pad-left" data-dir="LEFT" aria-label="Venstre">◀</button>
-        <button class="pad pad-pause" id="pause-btn" aria-label="Pause">❚❚</button>
         <button class="pad pad-right" data-dir="RIGHT" aria-label="Højre">▶</button>
         <button class="pad pad-down" data-dir="DOWN" aria-label="Ned">▼</button>
       </div>
-      <p class="hint hint-touch">Swipe på banen eller brug pilene. ❚❚ sætter spillet på pause.</p>
+      <p class="hint hint-touch">Swipe på banen eller brug pilene. ❚❚ øverst sætter spillet på pause.</p>
     </div>
 
     <!-- Game over -->
@@ -200,21 +202,21 @@
 <!-- Fyrværkeri: dækker hele siden, ligger øverst og tager ikke imod klik -->
 <canvas id="fireworks" class="fireworks"></canvas>
 
-<!-- ?v=3 tvinger browseren til at hente filerne på ny. Hæv tallet (overalt, også i style.css-linket) ved hver opdatering -->
-<script src="config.js?v=3"></script>
-<script src="sound.js?v=3"></script>
-<script src="effects.js?v=3"></script>
-<script src="score.js?v=3"></script>
-<script src="scoreboard.js?v=3"></script>
-<script src="snake.js?v=3"></script>
-<script src="birds.js?v=3"></script>
-<script src="powerups.js?v=3"></script>
-<script src="sprites.js?v=3"></script>
-<script src="renderer.js?v=3"></script>
-<script src="hud.js?v=3"></script>
-<script src="fireworks.js?v=3"></script>
-<script src="menu.js?v=3"></script>
-<script src="game.js?v=3"></script>
-<script src="script.js?v=3"></script>
+<!-- ?v=4 tvinger browseren til at hente filerne på ny. Hæv tallet (overalt, også i style.css-linket) ved hver opdatering -->
+<script src="config.js?v=4"></script>
+<script src="sound.js?v=4"></script>
+<script src="effects.js?v=4"></script>
+<script src="score.js?v=4"></script>
+<script src="scoreboard.js?v=4"></script>
+<script src="snake.js?v=4"></script>
+<script src="birds.js?v=4"></script>
+<script src="powerups.js?v=4"></script>
+<script src="sprites.js?v=4"></script>
+<script src="renderer.js?v=4"></script>
+<script src="hud.js?v=4"></script>
+<script src="fireworks.js?v=4"></script>
+<script src="menu.js?v=4"></script>
+<script src="game.js?v=4"></script>
+<script src="script.js?v=4"></script>
 </body>
 </html>
