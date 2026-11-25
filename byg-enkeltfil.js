@@ -23,8 +23,8 @@ html = html.replace(/<script src="([^"]+)"><\/script>/g, (match, file) => {
   return `<script>\n${code}\n</script>`;
 });
 
-// der må ikke være noget tilbage, som peger på andre filer
-const leftovers = html.match(/(?:src|href)="(?!#|data:)[^"]*"/g);
+// der må ikke være noget tilbage, som peger på andre filer (links til andre hjemmesider er fine)
+const leftovers = html.match(/(?:src|href)="(?!#|data:|https?:)[^"]*"/g);
 if (leftovers) throw new Error("Der peges stadig på andre filer: " + leftovers.join(", "));
 
 const output = path.join(dir, "Snake-spil.html");
