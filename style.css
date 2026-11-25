@@ -186,7 +186,8 @@ canvas {
 
 /* ---- Telefon: pileknapper under banen. Vises kun på touch-skærme ---- */
 .touch-controls,
-.hint-touch {
+.hint-touch,
+.rules-keys.rules-touch {
   display: none;
 }
 
@@ -235,7 +236,9 @@ canvas {
   body:has(#game-screen:not(.hidden)) .pause-btn { display: block; }
   .touch-controls { display: grid; }
   .hint-touch { display: block; }
-  .hint-keys { display: none; }
+  .rules-keys.rules-touch { display: flex; }
+  .hint-keys,
+  .rules-keys.hint-keys { display: none; }
 }
 
 /* Regler-pop-up */
@@ -797,7 +800,7 @@ canvas.fireworks.active {
 }
 
 /* Står sidst, så reglerne her vinder over de almindelige regler ovenfor */
-/* ---- Smal skærm: alt skaleres ned til telefonens bredde ---- */
+/* ---- Smal skærm: alt skaleres ned til telefonens bredde, og menuen kan ses på én skærm ---- */
 @media (max-width: 560px) {
   body {
     align-items: flex-start;
@@ -805,55 +808,215 @@ canvas.fireworks.active {
 
   .game-container {
     width: 100%;
-    padding: 60px 10px 16px; /* plads til knapperne i hjørnerne */
+    padding: 12px 10px 16px;
   }
 
+  /* Knapperne i hjørnerne bliver lidt mindre, så overskriften kan stå mellem dem */
+  .home-link {
+    top: 10px;
+    left: 10px;
+    height: 36px;
+    padding: 0 9px;
+    font-size: 12px;
+  }
+
+  .sound-btn,
+  .pause-btn {
+    top: 10px;
+    width: 36px;
+    height: 36px;
+    font-size: 15px;
+  }
+
+  .sound-btn { right: 10px; }
+  .pause-btn { right: 54px; }
+
+  /* skubbet lidt mod højre, så den går fri af "Alle spil" */
   h1 {
-    margin-top: 0;
-    font-size: 26px;
+    margin: 0 0 12px;
+    padding-left: 44px;
+    font-size: 20px;
+    line-height: 36px;
+    letter-spacing: 1px;
+  }
+
+  /* Under spillet er der ingen overskrift, så HUD'en skal under knapperne */
+  body.in-game .game-container {
+    padding-top: 54px;
   }
 
   #menu-screen,
   #gameover-screen {
-    padding: 16px 12px;
+    padding: 12px;
   }
 
+  #gameover-screen h2 {
+    margin: 0 0 6px;
+  }
+
+  #gameover-screen p {
+    margin: 4px 0;
+  }
+
+  /* Spil igen og Tilbage til menu ved siden af hinanden, i fuld bredde */
+  .gameover-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .gameover-actions button {
+    flex: 1 1 0;
+    margin: 0;
+    padding: 12px 6px;
+  }
+
+  /* Indstillinger: tættere rækker */
   .option-row {
-    grid-template-columns: 78px 1fr 1fr 1fr;
+    grid-template-columns: 74px 1.3fr 1fr 1fr;
+    margin: 6px 0;
     font-size: 13px;
+  }
+
+  .option-row label {
+    gap: 3px;
+    font-size: 12px;
   }
 
   .name-row {
-    grid-template-columns: 78px 1fr;
+    grid-template-columns: 74px 1fr;
   }
 
-  .hud {
-    width: 100%;
-    font-size: 13px;
+  .menu-actions {
+    margin-top: 14px;
   }
 
-  /* Top-listen: navnet står på sin egen linje over tallene */
-  .board-list {
-    min-height: calc(5 * 66px);
+  .menu-actions #start-btn {
+    padding: 12px 20px;
+  }
+
+  /* Top-listen i menuen og på game over: én linje pr. spil med navn og det tal, listen er sorteret efter.
+     Alle tallene står stadig i den fulde liste under "Se top 100" */
+  .scoreboard {
+    padding: 10px 12px;
+  }
+
+  .board-title {
+    font-size: 16px;
+  }
+
+  .board-tabs {
+    margin-bottom: 8px;
+  }
+
+  .board-tab {
+    padding: 4px 10px;
+    font-size: 12px;
+  }
+
+  .board-more {
+    margin-top: 6px;
+  }
+
+  .scoreboard:not(.scoreboard-full) .board-list {
+    min-height: calc(5 * 28px);
+    padding-left: 22px;
+  }
+
+  .scoreboard:not(.scoreboard-full) .board-list li {
+    height: 24px;
+    margin-bottom: 4px;
+    padding: 2px 6px;
+  }
+
+  .scoreboard:not(.scoreboard-full) .lb-sub,
+  .scoreboard:not(.scoreboard-full) .lb-sep,
+  .scoreboard:not(.scoreboard-full) .lb-part:not(.lb-hot) {
+    display: none;
+  }
+
+  .scoreboard:not(.scoreboard-full) .lb-name {
+    font-size: 14px;
+  }
+
+  /* Den fulde liste: navnet står på sin egen linje over tallene */
+  .scoreboard-full .board-list {
     padding-left: 20px;
   }
 
-  .board-list li {
+  .scoreboard-full .board-list li {
     height: auto;
     min-height: 44px;
   }
 
-  .lb-row {
+  .scoreboard-full .lb-row {
     flex-wrap: wrap;
     gap: 0 8px;
   }
 
-  .lb-name {
+  .scoreboard-full .lb-name {
     flex-basis: 100%;
   }
 
-  .lb-main {
+  .scoreboard-full .lb-main {
+    flex: 1 1 100%;
+    min-width: 0;
     white-space: normal;
     font-size: 13px;
+  }
+
+  .scoreboard-full .lb-sub {
+    white-space: normal;
+  }
+
+  .scoreboard-full .board-list {
+    overflow-x: hidden;
+  }
+
+  .scoreboard-full .board-tab {
+    padding: 4px 10px;
+    font-size: 12px;
+  }
+
+  .modal-box {
+    padding: 14px 12px;
+  }
+
+  /* Spilskærmen: banen bliver mindre på lave skærme, så pilene altid kan ses */
+  .hud {
+    width: 100%;
+    margin-bottom: 6px;
+    font-size: 13px;
+  }
+
+  .combo-meter {
+    height: 22px;
+    margin-bottom: 4px;
+  }
+
+  .status-row {
+    min-height: 20px;
+    margin-bottom: 4px;
+  }
+
+  .bonus-panel {
+    min-height: 32px;
+    margin-bottom: 6px;
+  }
+
+  #game-canvas {
+    width: min(100%, calc(100dvh - 350px));
+    min-width: 240px;
+  }
+
+  .touch-controls {
+    grid-template-columns: repeat(3, 60px);
+    grid-template-rows: repeat(3, 50px);
+    margin-top: 10px;
+  }
+
+  /* pilene forklarer sig selv, og pladsen skal bruges til banen */
+  .hint-touch {
+    display: none !important;
   }
 }

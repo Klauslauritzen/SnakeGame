@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Snake</title>
-<link rel="stylesheet" href="style.css?v=4">
+<link rel="stylesheet" href="style.css?v=5">
 </head>
 <body>
   <!-- Lyd til/fra: altid synlig i hjørnet -->
@@ -84,10 +84,15 @@
         <div class="modal-box modal-rules">
           <h3 class="rules-title">Regler</h3>
 
-          <div class="rules-keys">
+          <div class="rules-keys hint-keys">
             <span><kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> styrer</span>
             <span><kbd>Mellemrum</kbd> pause</span>
             <span><kbd>M</kbd> lyd</span>
+          </div>
+          <div class="rules-keys rules-touch">
+            <span>Swipe eller brug pilene for at styre</span>
+            <span><kbd>❚❚</kbd> pause</span>
+            <span><kbd>🔊</kbd> lyd</span>
           </div>
 
           <div class="rules-grid">
@@ -179,8 +184,10 @@
         <ol class="board-list"></ol>
         <button class="board-more" data-open="scoreboard-modal">Se top 100</button>
       </div>
-      <button id="restart-btn">Spil igen</button>
-      <button id="menu-btn">Tilbage til menu</button>
+      <div class="gameover-actions">
+        <button id="restart-btn">Spil igen</button>
+        <button id="menu-btn">Tilbage til menu</button>
+      </div>
     </div>
   </div>
 
@@ -202,21 +209,21 @@
 <!-- Fyrværkeri: dækker hele siden, ligger øverst og tager ikke imod klik -->
 <canvas id="fireworks" class="fireworks"></canvas>
 
-<!-- ?v=4 tvinger browseren til at hente filerne på ny. Hæv tallet (overalt, også i style.css-linket) ved hver opdatering -->
-<script src="config.js?v=4"></script>
-<script src="sound.js?v=4"></script>
-<script src="effects.js?v=4"></script>
-<script src="score.js?v=4"></script>
-<script src="scoreboard.js?v=4"></script>
-<script src="snake.js?v=4"></script>
-<script src="birds.js?v=4"></script>
-<script src="powerups.js?v=4"></script>
-<script src="sprites.js?v=4"></script>
-<script src="renderer.js?v=4"></script>
-<script src="hud.js?v=4"></script>
-<script src="fireworks.js?v=4"></script>
-<script src="menu.js?v=4"></script>
-<script src="game.js?v=4"></script>
-<script src="script.js?v=4"></script>
+<!-- ?v=5 tvinger browseren til at hente filerne på ny. Hæv tallet (overalt, også i style.css-linket) ved hver opdatering -->
+<script src="config.js?v=5"></script>
+<script src="sound.js?v=5"></script>
+<script src="effects.js?v=5"></script>
+<script src="score.js?v=5"></script>
+<script src="scoreboard.js?v=5"></script>
+<script src="snake.js?v=5"></script>
+<script src="birds.js?v=5"></script>
+<script src="powerups.js?v=5"></script>
+<script src="sprites.js?v=5"></script>
+<script src="renderer.js?v=5"></script>
+<script src="hud.js?v=5"></script>
+<script src="fireworks.js?v=5"></script>
+<script src="menu.js?v=5"></script>
+<script src="game.js?v=5"></script>
+<script src="script.js?v=5"></script>
 </body>
 </html>
