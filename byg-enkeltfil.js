@@ -10,11 +10,12 @@ const read = file => fs.readFileSync(path.join(dir, file), "utf8");
 let html = read("index.html");
 
 // stilarkene lægges ind i siden
-html = html.replace(/<link rel="stylesheet" href="([^"]+)">/g, (match, file) => `<style>\n${read(file)}\n</style>`);
+// (?v=... efter filnavnet er kun til browserens cache og fjernes her)
+html = html.replace(/<link rel="stylesheet" href="([^"?]+)(?:\?[^"]*)?">/g, (match, file) => `<style>\n${read(file)}\n</style>`);
 
 // og hver kodefil lægges ind i samme rækkefølge, som siden henter dem
 let scripts = 0;
-html = html.replace(/<script src="([^"]+)"><\/script>/g, (match, file) => {
+html = html.replace(/<script src="([^"?]+)(?:\?[^"]*)?"><\/script>/g, (match, file) => {
   const code = read(file);
   if (code.toLowerCase().includes("</script")) {
     throw new Error(`${file} indeholder "</script", som ville ødelægge den samlede fil`);
