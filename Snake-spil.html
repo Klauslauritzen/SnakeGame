@@ -1324,7 +1324,7 @@ canvas.fireworks.active {
 <!-- Fyrværkeri: dækker hele siden, ligger øverst og tager ikke imod klik -->
 <canvas id="fireworks" class="fireworks"></canvas>
 
-<!-- ?v=11 tvinger browseren til at hente filerne på ny. Hæv tallet (overalt, også i style.css-linket) ved hver opdatering -->
+<!-- ?v=12 tvinger browseren til at hente filerne på ny. Hæv tallet (overalt, også i style.css-linket) ved hver opdatering -->
 <script>
 // ---- Konstanter for hele spillet ----
 
@@ -1411,9 +1411,11 @@ const APPLE_COLOR = "#d62828";
 
 // Fart
 const START_TICK_DELAY = 100;  // starthastighed i ms pr. tick
-const SPEED_STEP_EVERY = 5;    // hver 5. frugt øges hastigheden
-const SPEED_FACTOR = 0.9;      // tick-tiden ganges med denne faktor ved hvert trin
-const MIN_TICK_DELAY = 40;     // hurtigste tilladte tick-tid i ms
+const MIN_TICK_DELAY = 50;     // topfarten: hurtigste tick-tid i ms
+const SPEED_STEP_EVERY = 5;    // hver 5. frugt øges hastigheden et trin
+const TOP_SPEED_FRUITS = 45;   // så mange frugter før man når topfarten
+// tick-tiden ganges med denne faktor pr. trin, så man går jævnt fra startfarten til topfarten
+const SPEED_FACTOR = Math.pow(MIN_TICK_DELAY / START_TICK_DELAY, SPEED_STEP_EVERY / TOP_SPEED_FRUITS);
 
 // Fugle
 const BIRD_FACTOR = 2;           // en fugl giver så mange gange æblets point
@@ -3753,11 +3755,7 @@ class Game {
 
   // Tick-tiden i ms for et fart-trin: starter på START_TICK_DELAY og ganges med SPEED_FACTOR pr. trin, ned til MIN_TICK_DELAY
   static tickForStage(stage) {
-    let delay = START_TICK_DELAY;
-    for (let i = 0; i < stage && delay > MIN_TICK_DELAY; i++) {
-      delay = Math.max(MIN_TICK_DELAY, Math.round(delay * SPEED_FACTOR));
-    }
-    return delay;
+    return Math.max(MIN_TICK_DELAY, Math.round(START_TICK_DELAY * Math.pow(SPEED_FACTOR, stage)));
   }
 
   // Tick-tiden i ms lige nu. Urene kan aldrig gøre en langsommere end startfarten

@@ -114,11 +114,7 @@ class Game {
 
   // Tick-tiden i ms for et fart-trin: starter på START_TICK_DELAY og ganges med SPEED_FACTOR pr. trin, ned til MIN_TICK_DELAY
   static tickForStage(stage) {
-    let delay = START_TICK_DELAY;
-    for (let i = 0; i < stage && delay > MIN_TICK_DELAY; i++) {
-      delay = Math.max(MIN_TICK_DELAY, Math.round(delay * SPEED_FACTOR));
-    }
-    return delay;
+    return Math.max(MIN_TICK_DELAY, Math.round(START_TICK_DELAY * Math.pow(SPEED_FACTOR, stage)));
   }
 
   // Tick-tiden i ms lige nu. Urene kan aldrig gøre en langsommere end startfarten

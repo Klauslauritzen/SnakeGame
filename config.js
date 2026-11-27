@@ -83,9 +83,11 @@ const APPLE_COLOR = "#d62828";
 
 // Fart
 const START_TICK_DELAY = 100;  // starthastighed i ms pr. tick
-const SPEED_STEP_EVERY = 5;    // hver 5. frugt øges hastigheden
-const SPEED_FACTOR = 0.9;      // tick-tiden ganges med denne faktor ved hvert trin
-const MIN_TICK_DELAY = 40;     // hurtigste tilladte tick-tid i ms
+const MIN_TICK_DELAY = 50;     // topfarten: hurtigste tick-tid i ms
+const SPEED_STEP_EVERY = 5;    // hver 5. frugt øges hastigheden et trin
+const TOP_SPEED_FRUITS = 45;   // så mange frugter før man når topfarten
+// tick-tiden ganges med denne faktor pr. trin, så man går jævnt fra startfarten til topfarten
+const SPEED_FACTOR = Math.pow(MIN_TICK_DELAY / START_TICK_DELAY, SPEED_STEP_EVERY / TOP_SPEED_FRUITS);
 
 // Fugle
 const BIRD_FACTOR = 2;           // en fugl giver så mange gange æblets point
