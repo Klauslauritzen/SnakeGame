@@ -17,7 +17,6 @@ class Game {
       theme: "dark", difficulty: "normal", powerupsOn: true,
     };
     this.food = null;
-    this.tickDelay = START_TICK_DELAY;
     this.timer = null;
     this.started = false; // er der kørt et spil endnu, så banen kan tegnes
     this.isRunning = false;
@@ -30,7 +29,6 @@ class Game {
     this.stop(); // stopper et evt. gammelt spil og fyrværkeriet fra det forrige spil
     this.settings = settings;
     this.sound.init();
-    this.tickDelay = START_TICK_DELAY;
     this.reset();
     this.started = true;
     this.ui.menu.showGame();
@@ -106,9 +104,26 @@ class Game {
   }
 
   // ---- Tid og fart ----
-  // Tick-tiden i ms lige nu: farten fra frugterne, gjort langsommere af de langsomme ure
+  // Fart-trinnet lige nu: ét trin pr. SPEED_STEP_EVERY frugter, og hvert ur tager SLOW_STEPS trin tilbage.
+  // Trinnene bliver ved med at tælle efter topfarten, så med mange frugter æder urene kun af "overskuddet":
+  // med 100 frugter og 3 ure er man på 20 - 9 = 11 trin og stadig i topfart
+  speedStage() {
+    const stage = Math.floor(this.score.fruits / SPEED_STEP_EVERY) - SLOW_STEPS * this.powerups.slowLevel;
+    return Math.max(0, stage);
+  }
+
+  // Tick-tiden i ms for et fart-trin: starter på START_TICK_DELAY og ganges med SPEED_FACTOR pr. trin, ned til MIN_TICK_DELAY
+  static tickForStage(stage) {
+    let delay = START_TICK_DELAY;
+    for (let i = 0; i < stage && delay > MIN_TICK_DELAY; i++) {
+      delay = Math.max(MIN_TICK_DELAY, Math.round(delay * SPEED_FACTOR));
+    }
+    return delay;
+  }
+
+  // Tick-tiden i ms lige nu. Urene kan aldrig gøre en langsommere end startfarten
   effectiveTick() {
-    return Math.min(MAX_TICK_DELAY, this.tickDelay * this.powerups.slowFactor);
+    return Game.tickForStage(this.speedStage());
   }
 
   startTimer() {
@@ -309,10 +324,7 @@ class Game {
     this.effects.floatTextAtCell(at, `+${gained}`);
 
     this.score.fruits += 1;
-    if (this.score.fruits % SPEED_STEP_EVERY === 0) {
-      this.tickDelay = Math.max(MIN_TICK_DELAY, Math.round(this.tickDelay * SPEED_FACTOR));
-      this.startTimer();
-    }
+    if (this.score.fruits % SPEED_STEP_EVERY === 0) this.startTimer(); // nyt fart-trin
 
     this.effects.burstAtCell(at, color, 14);
     this.sound.eat();

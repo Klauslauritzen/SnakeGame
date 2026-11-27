@@ -52,9 +52,8 @@ const DOUBLE_DURATION = 8000;  // ms dobbelt point varer
 const BUFF_MAX_LEVEL = 3;      // en forstærker varer resten af spillet. Hver giver special frugt, stjerne og dobbelt point 1 gang mere tid, op til dette antal
 const SHIELD_FLASH_MS = 800;   // ms skjoldet blinker, når det er brugt
 const STAR_DURATION = 6000;    // ms man kan spise fuglene efter en stjernefrugt
-const SLOW_STEPS = 3;         // hvert langsomt ur sænker farten for altid så mange trin (et trin = det hop farten tager hver 5. frugt)
+const SLOW_STEPS = 3;         // hvert ur tager farten så mange trin tilbage for altid (et trin = 5 frugter). Trinnene tæller videre efter topfarten
 const SLOW_POINT_STAGES = 2;   // og sætter æblets point så mange trin tilbage pr. ur
-const MAX_TICK_DELAY = 220;    // langsomste tilladte tick-tid i ms, uanset hvor mange ure man tager
 const MAX_SHIELDS = 9;         // højst så mange skjolde man kan have
 const SHRINK_SHARE = 0.2;      // den korte power-up fjerner så stor en del af slangen (20 %)
 const SHRINK_MIN = 3;          // men altid mindst så mange led

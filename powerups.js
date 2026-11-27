@@ -83,11 +83,6 @@ class PowerUps {
     return this.starTimeLeft > 0;
   }
 
-  // Hvor mange gange længere tid hvert tick tager på grund af de langsomme ure
-  get slowFactor() {
-    return Math.pow(1 / SPEED_FACTOR, SLOW_STEPS * this.slowLevel);
-  }
-
   // Tager en power-up i brug. Kortere håndteres af slangen selv, så den er ikke med her
   activate(type) {
     if (type === "star") this.starTimeLeft += STAR_DURATION;

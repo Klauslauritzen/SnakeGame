@@ -1220,7 +1220,7 @@ canvas.fireworks.active {
             </div>
             <div class="rule-card" style="--accent: #9b5de5">
               <canvas class="rule-icon" data-sprite="slow" width="40" height="40"></canvas>
-              <div class="rule-text"><b>Ur</b><span>Sænker din fart for altid, men æblet giver færre point</span></div>
+              <div class="rule-text"><b>Ur</b><span>Tager farten 15 frugter tilbage for altid, men æblet giver færre point</span></div>
             </div>
             <div class="rule-card" style="--accent: #2ec4b6">
               <canvas class="rule-icon" data-sprite="buff" width="40" height="40"></canvas>
@@ -1324,7 +1324,7 @@ canvas.fireworks.active {
 <!-- Fyrværkeri: dækker hele siden, ligger øverst og tager ikke imod klik -->
 <canvas id="fireworks" class="fireworks"></canvas>
 
-<!-- ?v=10 tvinger browseren til at hente filerne på ny. Hæv tallet (overalt, også i style.css-linket) ved hver opdatering -->
+<!-- ?v=11 tvinger browseren til at hente filerne på ny. Hæv tallet (overalt, også i style.css-linket) ved hver opdatering -->
 <script>
 // ---- Konstanter for hele spillet ----
 
@@ -1380,9 +1380,8 @@ const DOUBLE_DURATION = 8000;  // ms dobbelt point varer
 const BUFF_MAX_LEVEL = 3;      // en forstærker varer resten af spillet. Hver giver special frugt, stjerne og dobbelt point 1 gang mere tid, op til dette antal
 const SHIELD_FLASH_MS = 800;   // ms skjoldet blinker, når det er brugt
 const STAR_DURATION = 6000;    // ms man kan spise fuglene efter en stjernefrugt
-const SLOW_STEPS = 3;         // hvert langsomt ur sænker farten for altid så mange trin (et trin = det hop farten tager hver 5. frugt)
+const SLOW_STEPS = 3;         // hvert ur tager farten så mange trin tilbage for altid (et trin = 5 frugter). Trinnene tæller videre efter topfarten
 const SLOW_POINT_STAGES = 2;   // og sætter æblets point så mange trin tilbage pr. ur
-const MAX_TICK_DELAY = 220;    // langsomste tilladte tick-tid i ms, uanset hvor mange ure man tager
 const MAX_SHIELDS = 9;         // højst så mange skjolde man kan have
 const SHRINK_SHARE = 0.2;      // den korte power-up fjerner så stor en del af slangen (20 %)
 const SHRINK_MIN = 3;          // men altid mindst så mange led
@@ -2178,11 +2177,6 @@ class PowerUps {
 
   get canEatBirds() {
     return this.starTimeLeft > 0;
-  }
-
-  // Hvor mange gange længere tid hvert tick tager på grund af de langsomme ure
-  get slowFactor() {
-    return Math.pow(1 / SPEED_FACTOR, SLOW_STEPS * this.slowLevel);
   }
 
   // Tager en power-up i brug. Kortere håndteres af slangen selv, så den er ikke med her
@@ -3662,7 +3656,6 @@ class Game {
       theme: "dark", difficulty: "normal", powerupsOn: true,
     };
     this.food = null;
-    this.tickDelay = START_TICK_DELAY;
     this.timer = null;
     this.started = false; // er der kørt et spil endnu, så banen kan tegnes
     this.isRunning = false;
@@ -3675,7 +3668,6 @@ class Game {
     this.stop(); // stopper et evt. gammelt spil og fyrværkeriet fra det forrige spil
     this.settings = settings;
     this.sound.init();
-    this.tickDelay = START_TICK_DELAY;
     this.reset();
     this.started = true;
     this.ui.menu.showGame();
@@ -3751,9 +3743,26 @@ class Game {
   }
 
   // ---- Tid og fart ----
-  // Tick-tiden i ms lige nu: farten fra frugterne, gjort langsommere af de langsomme ure
+  // Fart-trinnet lige nu: ét trin pr. SPEED_STEP_EVERY frugter, og hvert ur tager SLOW_STEPS trin tilbage.
+  // Trinnene bliver ved med at tælle efter topfarten, så med mange frugter æder urene kun af "overskuddet":
+  // med 100 frugter og 3 ure er man på 20 - 9 = 11 trin og stadig i topfart
+  speedStage() {
+    const stage = Math.floor(this.score.fruits / SPEED_STEP_EVERY) - SLOW_STEPS * this.powerups.slowLevel;
+    return Math.max(0, stage);
+  }
+
+  // Tick-tiden i ms for et fart-trin: starter på START_TICK_DELAY og ganges med SPEED_FACTOR pr. trin, ned til MIN_TICK_DELAY
+  static tickForStage(stage) {
+    let delay = START_TICK_DELAY;
+    for (let i = 0; i < stage && delay > MIN_TICK_DELAY; i++) {
+      delay = Math.max(MIN_TICK_DELAY, Math.round(delay * SPEED_FACTOR));
+    }
+    return delay;
+  }
+
+  // Tick-tiden i ms lige nu. Urene kan aldrig gøre en langsommere end startfarten
   effectiveTick() {
-    return Math.min(MAX_TICK_DELAY, this.tickDelay * this.powerups.slowFactor);
+    return Game.tickForStage(this.speedStage());
   }
 
   startTimer() {
@@ -3954,10 +3963,7 @@ class Game {
     this.effects.floatTextAtCell(at, `+${gained}`);
 
     this.score.fruits += 1;
-    if (this.score.fruits % SPEED_STEP_EVERY === 0) {
-      this.tickDelay = Math.max(MIN_TICK_DELAY, Math.round(this.tickDelay * SPEED_FACTOR));
-      this.startTimer();
-    }
+    if (this.score.fruits % SPEED_STEP_EVERY === 0) this.startTimer(); // nyt fart-trin
 
     this.effects.burstAtCell(at, color, 14);
     this.sound.eat();
