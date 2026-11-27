@@ -37,3 +37,36 @@ grant select, insert on public.scores to anon;
 -- Tilføjet senere: telefon og computer har hver sin top-liste
 alter table public.scores add column if not exists mobile boolean not null default false;
 create index if not exists scores_mobile_score_idx on public.scores (mobile, score desc);
+
+-- Tilføjet senere: top-lister for i dag, denne uge, denne måned og altid.
+-- Giver alle spil, der er med i top 100 på en af listerne (point, frugter, tid, combo, fugle)
+-- for hver periode og hver enhed. Periodernes start sendes med fra browseren i spillerens egen tid
+create or replace function public.top_scores(day_start timestamptz, week_start timestamptz, month_start timestamptz, max_rows int default 100)
+returns setof public.scores
+language sql
+stable
+security invoker
+set search_path = ''
+as $$
+  with periods(p_start) as (
+    values ('-infinity'::timestamptz), (month_start), (week_start), (day_start)
+  ),
+  ranked as (
+    select s.id,
+      row_number() over (partition by p.p_start, s.mobile order by s.score desc, s.fruits desc, s.id) as r_score,
+      row_number() over (partition by p.p_start, s.mobile order by s.fruits desc, s.score desc, s.id) as r_fruits,
+      row_number() over (partition by p.p_start, s.mobile order by s.time desc, s.score desc, s.id) as r_time,
+      row_number() over (partition by p.p_start, s.mobile order by s.combo desc, s.score desc, s.id) as r_combo,
+      row_number() over (partition by p.p_start, s.mobile order by s.birds desc, s.score desc, s.id) as r_birds
+    from public.scores s
+    join periods p on s.created_at >= p.p_start
+  )
+  select s.* from public.scores s
+  where s.id in (
+    select id from ranked
+    where least(r_score, r_fruits, r_time, r_combo, r_birds) <= least(greatest(max_rows, 1), 100)
+  );
+$$;
+
+grant execute on function public.top_scores(timestamptz, timestamptz, timestamptz, int) to anon;
+create index if not exists scores_created_at_idx on public.scores (created_at);

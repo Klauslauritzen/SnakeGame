@@ -54,6 +54,14 @@ class Game {
       powerupDone: !this.settings.powerupsOn,
       powerupApple: Game.pickIntroPowerupApple(),
     };
+    // Ur og forstærker kommer altid mindst én gang, før man har spist GUARANTEE_BY_FRUIT frugter.
+    // Hver får et tilfældigt frugt-tal, hvor den senest kommer, hvis den ikke er kommet af sig selv
+    this.guaranteed = {};
+    if (this.settings.powerupsOn) {
+      GUARANTEED_POWERUPS.forEach(type => {
+        this.guaranteed[type] = Math.floor(randomBetween(GUARANTEE_FROM_FRUIT, GUARANTEE_BY_FRUIT - GUARANTEED_POWERUPS.length + 1));
+      });
+    }
     this.placeApple();
     this.ui.hud.update(this);
   }
@@ -84,9 +92,17 @@ class Game {
     this.ui.menu.showGameOver(stats);
     this.ui.scoreboardView.render(this.scoreboard);
 
-    // kommer man på top 5 på en af listerne, er der fyrværkeri (længere og vildere for en 1. plads)
-    const placement = this.scoreboard.lastPlacement;
-    if (placement && placement.rank <= SCOREBOARD_SIZE) this.ui.fireworks.start(placement.rank);
+    this.celebrate(this.scoreboard.lastPlacement);
+  }
+
+  // Fyrværkeri, når man kommer på top 5. "Altid" giver det store (længere og vildere for en 1. plads),
+  // måneden 10 raketter, ugen 2 og dagen 1. Er det top 5 på point- eller combo-listen, skriver en raket "TOP 1" til "TOP 5"
+  celebrate(placement) {
+    if (!placement || placement.rank > SCOREBOARD_SIZE) return;
+    const key = Scoreboard.PERIODS[placement.periodIndex].key;
+    const label = placement.topRank ? `TOP ${placement.topRank}` : null;
+    const count = key === "all" ? null : FIREWORK_ROCKETS[key];
+    this.ui.fireworks.start(placement.rank, { count, label });
   }
 
   // ---- Tid og fart ----
@@ -140,7 +156,17 @@ class Game {
   // kind er "fruit", "powerup" eller ikke angivet (så afgør chancerne)
   spawnBonus(kind) {
     const bonus = this.powerups.spawn(this.randomFreeCell(), this.settings.powerupsOn, kind);
+    delete this.guaranteed[bonus.type]; // er den kommet, er garantien opfyldt
     if (bonus.type === "star") this.spawnStarBird();
+  }
+
+  // En garanteret power-up, hvis det er dens tur (eller for sent). Højst én pr. æble.
+  // Returnerer true, hvis der kom en
+  spawnGuaranteed() {
+    const due = Object.keys(this.guaranteed).find(type => this.score.fruits >= this.guaranteed[type]);
+    if (!due) return false;
+    this.spawnBonus(due);
+    return true;
   }
 
   // Kaldes når et æble er spist. Hvert æble kan give én special frugt eller power-up.
@@ -162,6 +188,7 @@ class Game {
       }
       return;
     }
+    if (this.spawnGuaranteed()) return;
     if (Math.random() < BONUS_CHANCE) this.spawnBonus();
   }
 
@@ -250,6 +277,7 @@ class Game {
       this.collectBonus(hitBonus, newHead);
     } else if (hitBird) {
       this.eatBird(hitBird, newHead);
+      this.snake.dropTail(); // fugle giver kun point: slangen bliver ikke længere
     } else {
       this.snake.dropTail();
     }
@@ -316,7 +344,7 @@ class Game {
     this.sound.eat();
   }
 
-  // Fuglen spises (kun med stjernen aktiv). Slangen vokser ligesom ved en frugt.
+  // Fuglen spises (kun med stjernen aktiv). Den giver kun point: slangen bliver hverken længere eller hurtigere.
   // Fugle giver altid 2 gange æblets point og tæller med i combo'en ligesom frugter
   eatBird(bird, at) {
     this.birds.remove(bird);

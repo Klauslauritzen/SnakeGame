@@ -31,20 +31,23 @@ h1 {
 /* Panelet over banen: en lille boks pr. special frugt eller power-up på banen */
 .bonus-panel {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap; /* altid én linje med fast højde, så banen ikke hopper, når der kommer flere */
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 10px;
   width: 400px;
   max-width: 100%;
-  min-height: 40px;
+  height: 40px;
   margin: 0 auto 10px;
+  overflow: hidden;
 }
 
 .bonus-item {
   display: flex;
+  flex: 0 1 auto;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
+  min-width: 0;
 }
 
 .bonus-icon {
@@ -59,8 +62,17 @@ h1 {
 .bonus-info {
   display: flex;
   flex-direction: column;
+  flex: 0 1 80px;
   width: 80px;
+  min-width: 30px;
   font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bonus-icon {
+  flex-shrink: 0;
 }
 
 .bonus-bar {
@@ -157,6 +169,8 @@ button:hover {
 .hud {
   display: flex;
   justify-content: space-between;
+  gap: 8px;
+  white-space: nowrap; /* tallene må ikke ombrydes, så alt over banen har fast højde */
   width: 400px;
   margin: 0 auto 10px;
   font-size: 16px;
@@ -373,19 +387,25 @@ canvas {
 /* Rækken over banen med aktive power-ups */
 .status-row {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap; /* altid én linje med fast højde, så banen ikke hopper */
   justify-content: center;
-  gap: 8px;
+  gap: 5px;
   width: 400px;
   max-width: 100%;
-  min-height: 26px;
+  height: 26px;
+  overflow: hidden;
   margin: 0 auto 6px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: bold;
 }
 
 .status-chip {
-  padding: 2px 10px;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 2px 5px;
   border: 1px solid currentColor;
   border-radius: 12px;
   background: #22223b;
@@ -634,10 +654,29 @@ canvas.fireworks.active {
   text-align: center;
 }
 
-/* Kontakten ved overskriften: computerens eller telefonens top-liste */
+/* Under overskriften: kontakten mellem computer og telefon og valget af periode.
+   De står altid på deres egen linje, så boksen ikke skifter højde, når overskriften skifter */
 .board-nav {
-  flex-wrap: wrap;
-  gap: 6px 12px;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.board-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.board-period {
+  height: 24px;
+  padding: 0 6px;
+  font-size: 12px;
+  color: #eee;
+  background: #1a1a2e;
+  border: 1px solid #3a3a5c;
+  border-radius: 14px;
+  cursor: pointer;
 }
 
 .board-device {
@@ -945,8 +984,21 @@ canvas.fireworks.active {
   }
 
   .board-tab {
-    padding: 4px 10px;
-    font-size: 12px;
+    padding: 3px 7px;
+    font-size: 11px;
+  }
+
+  .board-tabs {
+    gap: 4px;
+  }
+
+  /* Kun ikonerne på kontakten, så den og perioden kan stå på én linje */
+  .board-device .device-label {
+    display: none;
+  }
+
+  .board-nav {
+    gap: 4px;
   }
 
   .board-more {
@@ -1030,17 +1082,20 @@ canvas.fireworks.active {
   }
 
   .status-row {
-    min-height: 20px;
+    height: 22px;
+    gap: 4px;
+    font-size: 11px;
     margin-bottom: 4px;
   }
 
   .bonus-panel {
-    min-height: 32px;
+    height: 36px;
+    gap: 6px;
     margin-bottom: 6px;
   }
 
   #game-canvas {
-    width: min(100%, calc(100dvh - 350px));
+    width: min(100%, calc(100dvh - 360px));
     min-width: 240px;
   }
 

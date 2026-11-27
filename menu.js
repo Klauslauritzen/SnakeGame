@@ -73,11 +73,19 @@ class ScoreboardView {
     });
   }
 
-  // Kontakten ved overskriften skifter mellem computerens og telefonens top-liste. Den valgte er grøn
+  // Under overskriften: kontakten mellem computerens og telefonens top-liste (den valgte er grøn)
+  // og en liste til at vælge periode: i dag, denne uge, denne måned eller altid
   renderDevice(navEl, scoreboard) {
     if (!navEl) return;
     let device = navEl.querySelector(".board-device");
+    let period = navEl.querySelector(".board-period");
     if (!device) {
+      const controls = document.createElement("div");
+      controls.className = "board-controls";
+      period = document.createElement("select");
+      period.className = "board-period";
+      period.setAttribute("aria-label", "Periode");
+      Scoreboard.PERIODS.forEach((p, i) => period.add(new Option(p.label, String(i))));
       device = document.createElement("div");
       device.className = "board-device";
       device.setAttribute("role", "group");
@@ -86,11 +94,18 @@ class ScoreboardView {
         const btn = document.createElement("button");
         btn.dataset.mobile = value;
         btn.title = `Top-listen for ${label.toLowerCase()}`;
-        btn.textContent = `${icon} ${label}`;
+        btn.textContent = `${icon} `;
+        const text = document.createElement("span");
+        text.className = "device-label"; // skjules på smalle skærme, hvor kun ikonet står
+        text.textContent = label;
+        btn.appendChild(text);
         device.appendChild(btn);
       });
-      navEl.appendChild(device);
+      controls.appendChild(device);
+      controls.appendChild(period);
+      navEl.appendChild(controls);
     }
+    period.value = String(scoreboard.periodIndex);
     device.querySelectorAll("button").forEach(btn => {
       const active = (btn.dataset.mobile === "true") === scoreboard.mobile;
       btn.classList.toggle("active", active);

@@ -14,6 +14,8 @@ const COMBO_BLINK_MS = 3000;   // combo-måleren blinker, når der er så lidt t
 const MAX_MULTIPLIER = 4;      // højeste combo-multiplikator
 const SCOREBOARD_KEY = "snake-scoreboard";
 const SCOREBOARD_SIZE = 5;     // antal navne på den korte top-liste
+// Raketter når man kommer på top 5 for perioden. "Altid" har det store fyrværkeri som før
+const FIREWORK_ROCKETS = { day: 1, week: 2, month: 10 };
 const SCOREBOARD_MAX = 100;    // antal spil der gemmes pr. liste og kan ses i den fulde liste
 const OLD_HIGH_SCORE_KEY = "snake-highscore"; // kun til at flytte en gammel enkelt rekord over
 
@@ -33,6 +35,10 @@ const INTRO_POWERUP_APPLES = [ // den garanterede power-up kommer efter et af di
   { apple: 5, chance: 0.4 },
   { apple: 6, chance: 0.2 },
 ];
+// Ur og forstærker kommer altid mindst én gang, før man har spist så mange frugter, så man kan nå at få begge
+const GUARANTEED_POWERUPS = ["slow", "buff"];
+const GUARANTEE_FROM_FRUIT = 8;  // tidligst efter så mange frugter (hvis de ikke er kommet af sig selv)
+const GUARANTEE_BY_FRUIT = 40;   // og senest før så mange
 const BONUS_LIFETIME = 6000;   // ms før en special frugt forsvinder
 const BONUS_MIN_FACTOR = 1.1;  // special frugt giver mindst så mange gange æblets point (når den er ved at forsvinde)
 const BONUS_MAX_FACTOR = 2;    // og højst så mange (når den lige er dukket op)
@@ -68,7 +74,7 @@ const POWERUP_TYPES = ["star", "shield", "slow", "shrink", "double", "buff"];
 const POWERUP_LABELS = {
   star: "Stjerne",
   shield: "Skjold",
-  slow: "Langsom",
+  slow: "Ur",
   shrink: "Kortere",
   double: "Dobbelt",
   buff: "Forstærk",

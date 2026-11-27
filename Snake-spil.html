@@ -38,20 +38,23 @@ h1 {
 /* Panelet over banen: en lille boks pr. special frugt eller power-up på banen */
 .bonus-panel {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap; /* altid én linje med fast højde, så banen ikke hopper, når der kommer flere */
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 10px;
   width: 400px;
   max-width: 100%;
-  min-height: 40px;
+  height: 40px;
   margin: 0 auto 10px;
+  overflow: hidden;
 }
 
 .bonus-item {
   display: flex;
+  flex: 0 1 auto;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
+  min-width: 0;
 }
 
 .bonus-icon {
@@ -66,8 +69,17 @@ h1 {
 .bonus-info {
   display: flex;
   flex-direction: column;
+  flex: 0 1 80px;
   width: 80px;
+  min-width: 30px;
   font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bonus-icon {
+  flex-shrink: 0;
 }
 
 .bonus-bar {
@@ -164,6 +176,8 @@ button:hover {
 .hud {
   display: flex;
   justify-content: space-between;
+  gap: 8px;
+  white-space: nowrap; /* tallene må ikke ombrydes, så alt over banen har fast højde */
   width: 400px;
   margin: 0 auto 10px;
   font-size: 16px;
@@ -380,19 +394,25 @@ canvas {
 /* Rækken over banen med aktive power-ups */
 .status-row {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap; /* altid én linje med fast højde, så banen ikke hopper */
   justify-content: center;
-  gap: 8px;
+  gap: 5px;
   width: 400px;
   max-width: 100%;
-  min-height: 26px;
+  height: 26px;
+  overflow: hidden;
   margin: 0 auto 6px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: bold;
 }
 
 .status-chip {
-  padding: 2px 10px;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 2px 5px;
   border: 1px solid currentColor;
   border-radius: 12px;
   background: #22223b;
@@ -641,10 +661,29 @@ canvas.fireworks.active {
   text-align: center;
 }
 
-/* Kontakten ved overskriften: computerens eller telefonens top-liste */
+/* Under overskriften: kontakten mellem computer og telefon og valget af periode.
+   De står altid på deres egen linje, så boksen ikke skifter højde, når overskriften skifter */
 .board-nav {
-  flex-wrap: wrap;
-  gap: 6px 12px;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.board-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.board-period {
+  height: 24px;
+  padding: 0 6px;
+  font-size: 12px;
+  color: #eee;
+  background: #1a1a2e;
+  border: 1px solid #3a3a5c;
+  border-radius: 14px;
+  cursor: pointer;
 }
 
 .board-device {
@@ -952,8 +991,21 @@ canvas.fireworks.active {
   }
 
   .board-tab {
-    padding: 4px 10px;
-    font-size: 12px;
+    padding: 3px 7px;
+    font-size: 11px;
+  }
+
+  .board-tabs {
+    gap: 4px;
+  }
+
+  /* Kun ikonerne på kontakten, så den og perioden kan stå på én linje */
+  .board-device .device-label {
+    display: none;
+  }
+
+  .board-nav {
+    gap: 4px;
   }
 
   .board-more {
@@ -1037,17 +1089,20 @@ canvas.fireworks.active {
   }
 
   .status-row {
-    min-height: 20px;
+    height: 22px;
+    gap: 4px;
+    font-size: 11px;
     margin-bottom: 4px;
   }
 
   .bonus-panel {
-    min-height: 32px;
+    height: 36px;
+    gap: 6px;
     margin-bottom: 6px;
   }
 
   #game-canvas {
-    width: min(100%, calc(100dvh - 350px));
+    width: min(100%, calc(100dvh - 360px));
     min-width: 240px;
   }
 
@@ -1269,7 +1324,7 @@ canvas.fireworks.active {
 <!-- Fyrværkeri: dækker hele siden, ligger øverst og tager ikke imod klik -->
 <canvas id="fireworks" class="fireworks"></canvas>
 
-<!-- ?v=8 tvinger browseren til at hente filerne på ny. Hæv tallet (overalt, også i style.css-linket) ved hver opdatering -->
+<!-- ?v=9 tvinger browseren til at hente filerne på ny. Hæv tallet (overalt, også i style.css-linket) ved hver opdatering -->
 <script>
 // ---- Konstanter for hele spillet ----
 
@@ -1287,6 +1342,8 @@ const COMBO_BLINK_MS = 3000;   // combo-måleren blinker, når der er så lidt t
 const MAX_MULTIPLIER = 4;      // højeste combo-multiplikator
 const SCOREBOARD_KEY = "snake-scoreboard";
 const SCOREBOARD_SIZE = 5;     // antal navne på den korte top-liste
+// Raketter når man kommer på top 5 for perioden. "Altid" har det store fyrværkeri som før
+const FIREWORK_ROCKETS = { day: 1, week: 2, month: 10 };
 const SCOREBOARD_MAX = 100;    // antal spil der gemmes pr. liste og kan ses i den fulde liste
 const OLD_HIGH_SCORE_KEY = "snake-highscore"; // kun til at flytte en gammel enkelt rekord over
 
@@ -1306,6 +1363,10 @@ const INTRO_POWERUP_APPLES = [ // den garanterede power-up kommer efter et af di
   { apple: 5, chance: 0.4 },
   { apple: 6, chance: 0.2 },
 ];
+// Ur og forstærker kommer altid mindst én gang, før man har spist så mange frugter, så man kan nå at få begge
+const GUARANTEED_POWERUPS = ["slow", "buff"];
+const GUARANTEE_FROM_FRUIT = 8;  // tidligst efter så mange frugter (hvis de ikke er kommet af sig selv)
+const GUARANTEE_BY_FRUIT = 40;   // og senest før så mange
 const BONUS_LIFETIME = 6000;   // ms før en special frugt forsvinder
 const BONUS_MIN_FACTOR = 1.1;  // special frugt giver mindst så mange gange æblets point (når den er ved at forsvinde)
 const BONUS_MAX_FACTOR = 2;    // og højst så mange (når den lige er dukket op)
@@ -1341,7 +1402,7 @@ const POWERUP_TYPES = ["star", "shield", "slow", "shrink", "double", "buff"];
 const POWERUP_LABELS = {
   star: "Stjerne",
   shield: "Skjold",
-  slow: "Langsom",
+  slow: "Ur",
   shrink: "Kortere",
   double: "Dobbelt",
   buff: "Forstærk",
@@ -1632,7 +1693,8 @@ class Score {
 <script>
 // ---- Top-lister med navne (gemmes i browserens localStorage, og online hvis ONLINE_URL er sat) ----
 // Hver post har navn, point, frugter, fugle, power-ups, special frugter, længste combo og tid.
-// Der er fire lister, og man skifter mellem dem ved at klikke på fanerne. Alle viser alle tal.
+// Der er fem lister (point, frugter, tid, combo og fugle), og man skifter mellem dem ved at klikke på fanerne.
+// Hver liste findes for i dag, denne uge, denne måned og altid, og for telefon og computer hver for sig.
 // Vi gemmer de poster, der er med i top 100 på mindst én af listerne.
 // Online er listen fælles for alle spillere. Den lokale kopi vises med det samme, og den online liste
 // erstatter den, når den er hentet. Virker nettet ikke, bruges den lokale liste
@@ -1643,6 +1705,7 @@ class Scoreboard {
     // Telefon og computer har hver sin top-liste, for det er sværere at spille på telefon.
     // Man ser sin egen enheds liste først, men kan skifte til den anden
     this.mobile = IS_TOUCH;
+    this.periodIndex = Scoreboard.PERIODS.length - 1; // "Altid" vises først
     this.lastEntry = null; // det spil man lige har spillet, så det kan fremhæves i listerne
     this.lastPlacement = null; // dets bedste placering: { boardIndex, rank }, eller null hvis det ikke kom med
     this.onChange = null;  // kaldes, når den online liste er hentet, så den kan tegnes igen
@@ -1654,6 +1717,19 @@ class Scoreboard {
 
   get board() {
     return Scoreboard.BOARDS[this.boardIndex];
+  }
+
+  get period() {
+    return Scoreboard.PERIODS[this.periodIndex];
+  }
+
+  // Hvornår hver periode startede, i browserens egen tid: i dag kl. 0, mandag kl. 0 og den 1. i måneden kl. 0
+  static periodStarts(now = new Date()) {
+    const day = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const week = new Date(day);
+    week.setDate(day.getDate() - ((day.getDay() + 6) % 7)); // getDay giver 0 for søndag
+    const month = new Date(now.getFullYear(), now.getMonth(), 1);
+    return { day: day.getTime(), week: week.getTime(), month: month.getTime(), all: -Infinity };
   }
 
   load() {
@@ -1681,6 +1757,8 @@ class Scoreboard {
       time: Number(entry.time) || 0,
       mobile: entry.mobile === true, // ældre poster uden mobile hører til computerlisten
     };
+    // hvornår spillet blev spillet (ms). Gamle poster uden tid tæller kun med under "Altid"
+    clean.created = Number(entry.created) || Date.parse(entry.created_at) || 0;
     if (entry.id != null) clean.id = entry.id;
     return clean;
   }
@@ -1693,12 +1771,26 @@ class Scoreboard {
     }
   }
 
-  // De bedste på en liste for telefon eller computer (som standard den, der vises nu).
+  // De bedste på en liste for telefon eller computer og en periode (som standard dem, der vises nu).
   // Med nameFilter vises kun spillere, hvis navn indeholder teksten (uden store/små bogstaver)
-  topFor(board, limit = SCOREBOARD_SIZE, nameFilter = "", mobile = this.mobile) {
+  topFor(board, limit = SCOREBOARD_SIZE, nameFilter = "", mobile = this.mobile, period = this.period) {
     const needle = nameFilter.trim().toLowerCase();
-    const pool = this.entries.filter(e => e.mobile === mobile && (!needle || e.name.toLowerCase().includes(needle)));
+    const since = Scoreboard.periodStarts()[period.key];
+    const pool = this.entries.filter(e =>
+      e.mobile === mobile && e.created >= since && (!needle || e.name.toLowerCase().includes(needle))
+    );
     return pool.sort(board.sort).slice(0, limit);
+  }
+
+  // Alle lister for begge enheder og alle perioder: de poster, der skal gemmes
+  allTops() {
+    return Scoreboard.BOARDS.flatMap(board => [false, true].flatMap(mobile =>
+      Scoreboard.PERIODS.flatMap(period => this.topFor(board, SCOREBOARD_MAX, "", mobile, period))
+    ));
+  }
+
+  setPeriod(index) {
+    if (index >= 0 && index < Scoreboard.PERIODS.length) this.periodIndex = index;
   }
 
   // Skifter mellem telefonens og computerens top-liste
@@ -1706,52 +1798,57 @@ class Scoreboard {
     this.mobile = mobile;
   }
 
-  // Gemmer et spil. Posten beholdes, hvis den er med i top 100 for point, frugter, tid eller combo.
-  // Bagefter vises den liste, hvor spillet fik den bedste placering. Kom det ikke med i top 100, vises point
+  // Gemmer et spil. Posten beholdes, hvis den er med i top 100 på en af listerne.
+  // Bagefter vises den liste, hvor spillet fik den bedste placering (se placementOf)
   submit(name, stats) {
     if (stats.score <= 0 && stats.fruits <= 0 && stats.time <= 0) {
       this.lastEntry = null;
       this.lastPlacement = null;
       this.boardIndex = 0;
+      this.periodIndex = Scoreboard.PERIODS.length - 1;
       return;
     }
     // tal der mangler, bliver 0, så sorteringen altid virker
-    const entry = { name, score: 0, fruits: 0, birds: 0, powerups: 0, specials: 0, combo: 0, time: 0, ...stats, mobile: IS_TOUCH };
+    const entry = { name, score: 0, fruits: 0, birds: 0, powerups: 0, specials: 0, combo: 0, time: 0, ...stats, mobile: IS_TOUCH, created: Date.now() };
     this.entries.push(entry);
     this.lastEntry = entry;
     this.mobile = IS_TOUCH; // efter spillet vises listen for den enhed, man spillede på
-    const keep = new Set(Scoreboard.BOARDS.flatMap(board =>
-      [false, true].flatMap(mobile => this.topFor(board, SCOREBOARD_MAX, "", mobile))
-    ));
+    const keep = new Set(this.allTops());
     this.entries = this.entries.filter(e => keep.has(e));
     this.lastPlacement = this.placementOf(entry);
     this.boardIndex = this.lastPlacement ? this.lastPlacement.boardIndex : 0;
+    this.periodIndex = this.lastPlacement ? this.lastPlacement.periodIndex : Scoreboard.PERIODS.length - 1;
     this.save();
     this.upload(entry);
   }
 
   // ---- Online ----
   // Kald til Supabase. Den nye "publishable" nøgle sendes kun som apikey, den gamle "anon" nøgle også som Authorization
-  request(query, options = {}) {
+  // path er det, der står efter /rest/v1/: tabellen eller rpc/funktionen
+  request(path, options = {}) {
     const headers = { apikey: ONLINE_KEY, "Content-Type": "application/json", ...options.headers };
     if (ONLINE_KEY.startsWith("eyJ")) headers.Authorization = `Bearer ${ONLINE_KEY}`;
-    return fetch(`${ONLINE_URL}/rest/v1/${ONLINE_TABLE}${query}`, { ...options, headers }).then(res => {
+    return fetch(`${ONLINE_URL}/rest/v1/${path}`, { ...options, headers }).then(res => {
       if (!res.ok) throw new Error(`Top-listen svarede ${res.status}`);
       return res.json();
     });
   }
 
-  // Henter top 100 på hver af de fire lister, for både telefon og computer, og lægger dem sammen
+  // Henter alle spil, der er med i top 100 på en af listerne, for begge enheder og alle perioder, i ét kald.
+  // Databasens funktion top_scores (se supabase-opsaetning.sql) får periodernes start i browserens egen tid
   refresh() {
     if (!this.isOnline) return Promise.resolve();
-    const fields = "id,name,score,fruits,birds,powerups,specials,combo,time,mobile";
-    const lists = Scoreboard.BOARDS.flatMap(board => [false, true].map(mobile =>
-      this.request(`?select=${fields}&mobile=eq.${mobile}&order=${board.stat}.desc,score.desc&limit=${SCOREBOARD_MAX}`)
-    ));
-    return Promise.all(lists)
-      .then(results => {
+    const starts = Scoreboard.periodStarts();
+    const body = {
+      day_start: new Date(starts.day).toISOString(),
+      week_start: new Date(starts.week).toISOString(),
+      month_start: new Date(starts.month).toISOString(),
+      max_rows: SCOREBOARD_MAX,
+    };
+    return this.request("rpc/top_scores", { method: "POST", body: JSON.stringify(body) })
+      .then(rows => {
         const byId = new Map();
-        results.flat().forEach(entry => byId.set(entry.id, Scoreboard.clean(entry)));
+        rows.forEach(entry => byId.set(entry.id, Scoreboard.clean(entry)));
         // det seneste spil skal stadig kunne fremhæves, så det beholder sin plads blandt de nye poster
         const last = this.lastEntry;
         if (last && last.id != null && byId.has(last.id)) byId.set(last.id, last);
@@ -1766,27 +1863,48 @@ class Scoreboard {
   // Sender et spil til den fælles liste og henter listen igen bagefter
   upload(entry) {
     if (!this.isOnline) return;
-    const { id, ...row } = entry;
-    this.request("", { method: "POST", headers: { Prefer: "return=representation" }, body: JSON.stringify(row) })
+    // id og tidspunkt sætter databasen selv
+    const { id, created, ...row } = entry;
+    this.request(ONLINE_TABLE, { method: "POST", headers: { Prefer: "return=representation" }, body: JSON.stringify(row) })
       .then(([saved]) => {
         entry.id = saved.id;
+        entry.created = Date.parse(saved.created_at) || entry.created;
         return this.refresh();
       })
       .catch(err => console.warn("Kunne ikke gemme spillet på den fælles top-liste:", err));
   }
 
-  // Placeringen i top 100 på den liste, hvor posten står bedst: { boardIndex, rank }, hvor rank 1 er bedst.
-  // Ved lige placering vinder den første liste, så point kommer før frugter, tid og combo.
-  // Er posten ikke med i top 100 på nogen liste, er svaret null
-  placementOf(entry) {
+  // Den bedste placering for posten i én periode: { boardIndex, rank }, hvor rank 1 er bedst.
+  // Ved lige placering vinder den første liste. Med boards kan man nøjes med nogle af listerne
+  bestIn(entry, period, boards = Scoreboard.BOARDS) {
     let best = null;
-    Scoreboard.BOARDS.forEach((board, i) => {
-      const index = this.topFor(board, SCOREBOARD_MAX).indexOf(entry);
+    boards.forEach(board => {
+      const index = this.topFor(board, SCOREBOARD_MAX, "", entry.mobile, period).indexOf(entry);
       if (index !== -1 && (best === null || index + 1 < best.rank)) {
-        best = { boardIndex: i, rank: index + 1 };
+        best = { boardIndex: Scoreboard.BOARDS.indexOf(board), rank: index + 1 };
       }
     });
     return best;
+  }
+
+  // Hvor spillet står bedst. Den største periode, hvor det kom på top 5, vinder: altid, så måned, uge og dag.
+  // Kom det ikke på top 5 nogen steder, bruges den bedste placering under "Altid" (top 100).
+  // Svaret er { periodIndex, boardIndex, rank, topRank }, eller null hvis det ikke er med nogen steder.
+  // topRank er placeringen på point- eller combo-listen i samme periode, hvis den er top 5 (ellers null)
+  placementOf(entry) {
+    const order = [...Scoreboard.PERIODS.keys()].reverse(); // altid, måned, uge, dag
+    for (const periodIndex of order) {
+      const period = Scoreboard.PERIODS[periodIndex];
+      const best = this.bestIn(entry, period);
+      if (best && best.rank <= SCOREBOARD_SIZE) {
+        const record = this.bestIn(entry, period, Scoreboard.BOARDS.filter(b => b.record));
+        const topRank = record && record.rank <= SCOREBOARD_SIZE ? record.rank : null;
+        return { periodIndex, ...best, topRank };
+      }
+    }
+    const allIndex = Scoreboard.PERIODS.length - 1;
+    const allTime = this.bestIn(entry, Scoreboard.PERIODS[allIndex]);
+    return allTime ? { periodIndex: allIndex, ...allTime, topRank: null } : null;
   }
 
   // Går til en bestemt liste, når man klikker på dens fane
@@ -1802,12 +1920,21 @@ class Scoreboard {
 }
 
 // title er overskriften på listen, tab er teksten på fanen, og stat er det tal, listen er sorteret efter
-// (det bliver fremhævet i hver post)
+// (det bliver fremhævet i hver post). record betyder, at top 5 her giver raketten med "TOP 1" til "TOP 5"
 Scoreboard.BOARDS = [
-  { title: "Flest point", tab: "Point", stat: "score", sort: (a, b) => b.score - a.score || b.fruits - a.fruits },
+  { title: "Flest point", tab: "Point", stat: "score", record: true, sort: (a, b) => b.score - a.score || b.fruits - a.fruits },
   { title: "Flest frugter", tab: "Frugter", stat: "fruits", sort: (a, b) => b.fruits - a.fruits || b.score - a.score },
   { title: "Længste spil", tab: "Tid", stat: "time", sort: (a, b) => b.time - a.time || b.score - a.score },
-  { title: "Længste combo", tab: "Combo", stat: "combo", sort: (a, b) => b.combo - a.combo || b.score - a.score },
+  { title: "Længste combo", tab: "Combo", stat: "combo", record: true, sort: (a, b) => b.combo - a.combo || b.score - a.score },
+  { title: "Flest fugle", tab: "Fugle", stat: "birds", sort: (a, b) => b.birds - a.birds || b.score - a.score },
+];
+
+// Perioderne. key bruges af periodStarts. Den sidste er "Altid", som vises først
+Scoreboard.PERIODS = [
+  { key: "day", label: "I dag" },
+  { key: "week", label: "Denne uge" },
+  { key: "month", label: "Denne måned" },
+  { key: "all", label: "Altid" },
 ];
 
 </script>
@@ -2001,6 +2128,8 @@ class PowerUps {
     let type;
     if (kind === "fruit") {
       type = PowerUps.randomFruitType();
+    } else if (POWERUP_TYPES.includes(kind)) {
+      type = kind; // en bestemt power-up, fx den garanterede
     } else if (kind === "powerup") {
       type = PowerUps.randomPowerupType();
     } else {
@@ -2808,19 +2937,19 @@ class StatusRow {
   update(powerups) {
     const items = [];
     if (powerups.shieldCount > 0) {
-      items.push({ text: `Skjold: ${powerups.shieldCount}`, color: BONUS_FRUITS.shield.color });
+      items.push({ text: `Skjold ${powerups.shieldCount}`, color: BONUS_FRUITS.shield.color });
     }
     if (powerups.slowLevel > 0) {
-      items.push({ text: `Langsom: ${powerups.slowLevel}`, color: BONUS_FRUITS.slow.color });
+      items.push({ text: `Ur ${powerups.slowLevel}`, color: BONUS_FRUITS.slow.color });
     }
     if (powerups.starTimeLeft > 0) {
-      items.push({ text: `Stjerne: ${Math.ceil(powerups.starTimeLeft / 1000)}s`, color: BONUS_FRUITS.star.color });
+      items.push({ text: `Stjerne ${Math.ceil(powerups.starTimeLeft / 1000)}s`, color: BONUS_FRUITS.star.color });
     }
     if (powerups.doubleTimeLeft > 0) {
-      items.push({ text: `Dobbelt: ${Math.ceil(powerups.doubleTimeLeft / 1000)}s`, color: BONUS_FRUITS.double.color });
+      items.push({ text: `Dobbelt ${Math.ceil(powerups.doubleTimeLeft / 1000)}s`, color: BONUS_FRUITS.double.color });
     }
     if (powerups.buffLevel > 0) {
-      items.push({ text: `Forstærk: ${powerups.buffLevel}`, color: BONUS_FRUITS.buff.color });
+      items.push({ text: `Forstærk ${powerups.buffLevel}`, color: BONUS_FRUITS.buff.color });
     }
 
     // genopbyg kun, når noget er ændret
@@ -2917,10 +3046,13 @@ class Fireworks {
     this.timeLeft = 0;  // hvor længe der stadig sendes nye raketter op
     this.launchIn = 0;  // ms til næste raket
     this.interval = 500;
+    this.rocketsLeft = null; // med et fast antal raketter: hvor mange der mangler. null = så længe timeLeft varer
+    this.label = null;       // tekst som "TOP 3", som den første raket skriver på himlen
   }
 
-  // rank er placeringen (1 er bedst). En 1. plads giver mere og længere fyrværkeri
-  start(rank) {
+  // rank er placeringen (1 er bedst). En 1. plads giver mere og længere fyrværkeri.
+  // Med count sendes præcis så mange raketter op i stedet. Med label skriver den første raket teksten på himlen
+  start(rank, { count = null, label = null } = {}) {
     // har man bedt computeren om at undgå animationer, springer vi det over
     if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     this.resize();
@@ -2928,8 +3060,10 @@ class Fireworks {
     this.sparks = [];
     this.active = true;
     this.canvas.classList.add("active");
-    this.timeLeft = rank === 1 ? 7000 : 4500;
-    this.interval = rank === 1 ? 260 : 520;
+    this.rocketsLeft = count;
+    this.label = label;
+    this.timeLeft = count ? Infinity : rank === 1 ? 7000 : 4500;
+    this.interval = count ? 450 : rank === 1 ? 260 : 520;
     this.launchIn = 0;
     this.sound.fanfare();
   }
@@ -2939,6 +3073,8 @@ class Fireworks {
     this.rockets = [];
     this.sparks = [];
     this.timeLeft = 0;
+    this.rocketsLeft = null;
+    this.label = null;
     this.canvas.classList.remove("active");
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
   }
@@ -2963,8 +3099,72 @@ class Fireworks {
     });
   }
 
+  // Raketten med tekst: går lige op midt på skærmen og springer ud til teksten
+  launchLabel(text) {
+    const w = this.canvas.width;
+    const h = this.canvas.height;
+    const targetY = h * 0.28;
+    this.rockets.push({
+      x: w / 2,
+      y: h,
+      targetY,
+      vy: -(h - targetY) / 1000,
+      hue: 48, // guld
+      label: text,
+    });
+  }
+
+  // Punkterne i teksten: teksten tegnes på et lille lærred, og hver n'te lysende pixel bliver til en gnist
+  labelPoints(text, cx, cy) {
+    const size = Math.round(Math.min(this.canvas.width * 0.17, 120));
+    const off = document.createElement("canvas");
+    const octx = off.getContext("2d");
+    octx.font = `bold ${size}px "Courier New", monospace`;
+    off.width = Math.ceil(octx.measureText(text).width) + 8;
+    off.height = Math.ceil(size * 1.2);
+    octx.font = `bold ${size}px "Courier New", monospace`;
+    octx.textBaseline = "middle";
+    octx.fillStyle = "#fff";
+    octx.fillText(text, 4, off.height / 2);
+    const data = octx.getImageData(0, 0, off.width, off.height).data;
+    const step = Math.max(3, Math.round(size / 22));
+    const points = [];
+    for (let y = 0; y < off.height; y += step) {
+      for (let x = 0; x < off.width; x += step) {
+        if (data[(y * off.width + x) * 4 + 3] > 128) {
+          points.push({ x: cx - off.width / 2 + x, y: cy - off.height / 2 + y });
+        }
+      }
+    }
+    return points;
+  }
+
+  // Tekst-raketten springer: gnisterne flyver ud fra raketten og lægger sig, så de danner teksten
+  explodeLabel(rocket) {
+    this.labelPoints(rocket.label, rocket.x, rocket.y).forEach(p => {
+      const hue = 40 + Math.random() * 20;
+      this.sparks.push({
+        x: rocket.x,
+        y: rocket.y,
+        fromX: rocket.x,
+        fromY: rocket.y,
+        toX: p.x,
+        toY: p.y,
+        age: 0,
+        travel: 500 + Math.random() * 250, // ms om at nå sin plads
+        vx: 0,
+        vy: 0,
+        life: 2600 + Math.random() * 400,
+        maxLife: 3000,
+        color: Math.random() < 0.2 ? "255, 255, 255" : this.hslToRgb(hue, 1, 0.6),
+      });
+    });
+    this.sound.pop();
+  }
+
   // En raket springer: lysende gnister flyver ud i alle retninger, med nogle få hvide imellem
   explode(rocket) {
+    if (rocket.label) return this.explodeLabel(rocket);
     const count = 60 + Math.floor(Math.random() * 30);
     for (let i = 0; i < count; i++) {
       const angle = Math.random() * Math.PI * 2;
@@ -2999,10 +3199,18 @@ class Fireworks {
     if (!this.active) return;
 
     this.timeLeft -= dt;
+    if (this.rocketsLeft === 0) this.timeLeft = 0; // alle raketter er sendt op
     if (this.timeLeft > 0) {
       this.launchIn -= dt;
       if (this.launchIn <= 0) {
-        this.launch();
+        // teksten kommer først, så den står færdig, mens de andre raketter springer
+        if (this.label) {
+          this.launchLabel(this.label);
+          this.label = null;
+        } else {
+          this.launch();
+          if (this.rocketsLeft !== null) this.rocketsLeft -= 1;
+        }
         this.launchIn = this.interval * (0.6 + Math.random() * 0.8);
       }
     }
@@ -3017,6 +3225,17 @@ class Fireworks {
     this.rockets = this.rockets.filter(r => !r.done);
 
     this.sparks.forEach(s => {
+      // gnister fra tekst-raketten glider hen til deres plads i teksten, står stille og falder til sidst lidt ned
+      if (s.toX !== undefined) {
+        s.age += dt;
+        const t = Math.min(1, s.age / s.travel);
+        const ease = 1 - Math.pow(1 - t, 3);
+        s.x = s.fromX + (s.toX - s.fromX) * ease;
+        s.y = s.fromY + (s.toY - s.fromY) * ease;
+        if (s.life < 700) s.toY += 0.04 * dt;
+        s.life -= dt;
+        return;
+      }
       s.vy += 0.00045 * dt; // tyngdekraft
       const drag = Math.pow(0.997, dt);
       s.vx *= drag;
@@ -3136,11 +3355,19 @@ class ScoreboardView {
     });
   }
 
-  // Kontakten ved overskriften skifter mellem computerens og telefonens top-liste. Den valgte er grøn
+  // Under overskriften: kontakten mellem computerens og telefonens top-liste (den valgte er grøn)
+  // og en liste til at vælge periode: i dag, denne uge, denne måned eller altid
   renderDevice(navEl, scoreboard) {
     if (!navEl) return;
     let device = navEl.querySelector(".board-device");
+    let period = navEl.querySelector(".board-period");
     if (!device) {
+      const controls = document.createElement("div");
+      controls.className = "board-controls";
+      period = document.createElement("select");
+      period.className = "board-period";
+      period.setAttribute("aria-label", "Periode");
+      Scoreboard.PERIODS.forEach((p, i) => period.add(new Option(p.label, String(i))));
       device = document.createElement("div");
       device.className = "board-device";
       device.setAttribute("role", "group");
@@ -3149,11 +3376,18 @@ class ScoreboardView {
         const btn = document.createElement("button");
         btn.dataset.mobile = value;
         btn.title = `Top-listen for ${label.toLowerCase()}`;
-        btn.textContent = `${icon} ${label}`;
+        btn.textContent = `${icon} `;
+        const text = document.createElement("span");
+        text.className = "device-label"; // skjules på smalle skærme, hvor kun ikonet står
+        text.textContent = label;
+        btn.appendChild(text);
         device.appendChild(btn);
       });
-      navEl.appendChild(device);
+      controls.appendChild(device);
+      controls.appendChild(period);
+      navEl.appendChild(controls);
     }
+    period.value = String(scoreboard.periodIndex);
     device.querySelectorAll("button").forEach(btn => {
       const active = (btn.dataset.mobile === "true") === scoreboard.mobile;
       btn.classList.toggle("active", active);
@@ -3464,6 +3698,14 @@ class Game {
       powerupDone: !this.settings.powerupsOn,
       powerupApple: Game.pickIntroPowerupApple(),
     };
+    // Ur og forstærker kommer altid mindst én gang, før man har spist GUARANTEE_BY_FRUIT frugter.
+    // Hver får et tilfældigt frugt-tal, hvor den senest kommer, hvis den ikke er kommet af sig selv
+    this.guaranteed = {};
+    if (this.settings.powerupsOn) {
+      GUARANTEED_POWERUPS.forEach(type => {
+        this.guaranteed[type] = Math.floor(randomBetween(GUARANTEE_FROM_FRUIT, GUARANTEE_BY_FRUIT - GUARANTEED_POWERUPS.length + 1));
+      });
+    }
     this.placeApple();
     this.ui.hud.update(this);
   }
@@ -3494,9 +3736,17 @@ class Game {
     this.ui.menu.showGameOver(stats);
     this.ui.scoreboardView.render(this.scoreboard);
 
-    // kommer man på top 5 på en af listerne, er der fyrværkeri (længere og vildere for en 1. plads)
-    const placement = this.scoreboard.lastPlacement;
-    if (placement && placement.rank <= SCOREBOARD_SIZE) this.ui.fireworks.start(placement.rank);
+    this.celebrate(this.scoreboard.lastPlacement);
+  }
+
+  // Fyrværkeri, når man kommer på top 5. "Altid" giver det store (længere og vildere for en 1. plads),
+  // måneden 10 raketter, ugen 2 og dagen 1. Er det top 5 på point- eller combo-listen, skriver en raket "TOP 1" til "TOP 5"
+  celebrate(placement) {
+    if (!placement || placement.rank > SCOREBOARD_SIZE) return;
+    const key = Scoreboard.PERIODS[placement.periodIndex].key;
+    const label = placement.topRank ? `TOP ${placement.topRank}` : null;
+    const count = key === "all" ? null : FIREWORK_ROCKETS[key];
+    this.ui.fireworks.start(placement.rank, { count, label });
   }
 
   // ---- Tid og fart ----
@@ -3550,7 +3800,17 @@ class Game {
   // kind er "fruit", "powerup" eller ikke angivet (så afgør chancerne)
   spawnBonus(kind) {
     const bonus = this.powerups.spawn(this.randomFreeCell(), this.settings.powerupsOn, kind);
+    delete this.guaranteed[bonus.type]; // er den kommet, er garantien opfyldt
     if (bonus.type === "star") this.spawnStarBird();
+  }
+
+  // En garanteret power-up, hvis det er dens tur (eller for sent). Højst én pr. æble.
+  // Returnerer true, hvis der kom en
+  spawnGuaranteed() {
+    const due = Object.keys(this.guaranteed).find(type => this.score.fruits >= this.guaranteed[type]);
+    if (!due) return false;
+    this.spawnBonus(due);
+    return true;
   }
 
   // Kaldes når et æble er spist. Hvert æble kan give én special frugt eller power-up.
@@ -3572,6 +3832,7 @@ class Game {
       }
       return;
     }
+    if (this.spawnGuaranteed()) return;
     if (Math.random() < BONUS_CHANCE) this.spawnBonus();
   }
 
@@ -3660,6 +3921,7 @@ class Game {
       this.collectBonus(hitBonus, newHead);
     } else if (hitBird) {
       this.eatBird(hitBird, newHead);
+      this.snake.dropTail(); // fugle giver kun point: slangen bliver ikke længere
     } else {
       this.snake.dropTail();
     }
@@ -3726,7 +3988,7 @@ class Game {
     this.sound.eat();
   }
 
-  // Fuglen spises (kun med stjernen aktiv). Slangen vokser ligesom ved en frugt.
+  // Fuglen spises (kun med stjernen aktiv). Den giver kun point: slangen bliver hverken længere eller hurtigere.
   // Fugle giver altid 2 gange æblets point og tæller med i combo'en ligesom frugter
   eatBird(bird, at) {
     this.birds.remove(bird);
@@ -3822,6 +4084,12 @@ document.addEventListener("click", (e) => {
 });
 document.addEventListener("input", (e) => {
   if (e.target.matches(".board-filter")) scoreboardView.render(scoreboard);
+});
+// periode-listen: i dag, denne uge, denne måned eller altid
+document.addEventListener("change", (e) => {
+  if (!e.target.matches(".board-period")) return;
+  scoreboard.setPeriod(Number(e.target.value));
+  scoreboardView.render(scoreboard);
 });
 
 // Hemmelig knap: et klik på overskriften "Snake!" sender fyrværkeri op, som ved en 1. plads.

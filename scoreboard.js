@@ -1,6 +1,7 @@
 // ---- Top-lister med navne (gemmes i browserens localStorage, og online hvis ONLINE_URL er sat) ----
 // Hver post har navn, point, frugter, fugle, power-ups, special frugter, længste combo og tid.
-// Der er fire lister, og man skifter mellem dem ved at klikke på fanerne. Alle viser alle tal.
+// Der er fem lister (point, frugter, tid, combo og fugle), og man skifter mellem dem ved at klikke på fanerne.
+// Hver liste findes for i dag, denne uge, denne måned og altid, og for telefon og computer hver for sig.
 // Vi gemmer de poster, der er med i top 100 på mindst én af listerne.
 // Online er listen fælles for alle spillere. Den lokale kopi vises med det samme, og den online liste
 // erstatter den, når den er hentet. Virker nettet ikke, bruges den lokale liste
@@ -11,6 +12,7 @@ class Scoreboard {
     // Telefon og computer har hver sin top-liste, for det er sværere at spille på telefon.
     // Man ser sin egen enheds liste først, men kan skifte til den anden
     this.mobile = IS_TOUCH;
+    this.periodIndex = Scoreboard.PERIODS.length - 1; // "Altid" vises først
     this.lastEntry = null; // det spil man lige har spillet, så det kan fremhæves i listerne
     this.lastPlacement = null; // dets bedste placering: { boardIndex, rank }, eller null hvis det ikke kom med
     this.onChange = null;  // kaldes, når den online liste er hentet, så den kan tegnes igen
@@ -22,6 +24,19 @@ class Scoreboard {
 
   get board() {
     return Scoreboard.BOARDS[this.boardIndex];
+  }
+
+  get period() {
+    return Scoreboard.PERIODS[this.periodIndex];
+  }
+
+  // Hvornår hver periode startede, i browserens egen tid: i dag kl. 0, mandag kl. 0 og den 1. i måneden kl. 0
+  static periodStarts(now = new Date()) {
+    const day = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const week = new Date(day);
+    week.setDate(day.getDate() - ((day.getDay() + 6) % 7)); // getDay giver 0 for søndag
+    const month = new Date(now.getFullYear(), now.getMonth(), 1);
+    return { day: day.getTime(), week: week.getTime(), month: month.getTime(), all: -Infinity };
   }
 
   load() {
@@ -49,6 +64,8 @@ class Scoreboard {
       time: Number(entry.time) || 0,
       mobile: entry.mobile === true, // ældre poster uden mobile hører til computerlisten
     };
+    // hvornår spillet blev spillet (ms). Gamle poster uden tid tæller kun med under "Altid"
+    clean.created = Number(entry.created) || Date.parse(entry.created_at) || 0;
     if (entry.id != null) clean.id = entry.id;
     return clean;
   }
@@ -61,12 +78,26 @@ class Scoreboard {
     }
   }
 
-  // De bedste på en liste for telefon eller computer (som standard den, der vises nu).
+  // De bedste på en liste for telefon eller computer og en periode (som standard dem, der vises nu).
   // Med nameFilter vises kun spillere, hvis navn indeholder teksten (uden store/små bogstaver)
-  topFor(board, limit = SCOREBOARD_SIZE, nameFilter = "", mobile = this.mobile) {
+  topFor(board, limit = SCOREBOARD_SIZE, nameFilter = "", mobile = this.mobile, period = this.period) {
     const needle = nameFilter.trim().toLowerCase();
-    const pool = this.entries.filter(e => e.mobile === mobile && (!needle || e.name.toLowerCase().includes(needle)));
+    const since = Scoreboard.periodStarts()[period.key];
+    const pool = this.entries.filter(e =>
+      e.mobile === mobile && e.created >= since && (!needle || e.name.toLowerCase().includes(needle))
+    );
     return pool.sort(board.sort).slice(0, limit);
+  }
+
+  // Alle lister for begge enheder og alle perioder: de poster, der skal gemmes
+  allTops() {
+    return Scoreboard.BOARDS.flatMap(board => [false, true].flatMap(mobile =>
+      Scoreboard.PERIODS.flatMap(period => this.topFor(board, SCOREBOARD_MAX, "", mobile, period))
+    ));
+  }
+
+  setPeriod(index) {
+    if (index >= 0 && index < Scoreboard.PERIODS.length) this.periodIndex = index;
   }
 
   // Skifter mellem telefonens og computerens top-liste
@@ -74,52 +105,57 @@ class Scoreboard {
     this.mobile = mobile;
   }
 
-  // Gemmer et spil. Posten beholdes, hvis den er med i top 100 for point, frugter, tid eller combo.
-  // Bagefter vises den liste, hvor spillet fik den bedste placering. Kom det ikke med i top 100, vises point
+  // Gemmer et spil. Posten beholdes, hvis den er med i top 100 på en af listerne.
+  // Bagefter vises den liste, hvor spillet fik den bedste placering (se placementOf)
   submit(name, stats) {
     if (stats.score <= 0 && stats.fruits <= 0 && stats.time <= 0) {
       this.lastEntry = null;
       this.lastPlacement = null;
       this.boardIndex = 0;
+      this.periodIndex = Scoreboard.PERIODS.length - 1;
       return;
     }
     // tal der mangler, bliver 0, så sorteringen altid virker
-    const entry = { name, score: 0, fruits: 0, birds: 0, powerups: 0, specials: 0, combo: 0, time: 0, ...stats, mobile: IS_TOUCH };
+    const entry = { name, score: 0, fruits: 0, birds: 0, powerups: 0, specials: 0, combo: 0, time: 0, ...stats, mobile: IS_TOUCH, created: Date.now() };
     this.entries.push(entry);
     this.lastEntry = entry;
     this.mobile = IS_TOUCH; // efter spillet vises listen for den enhed, man spillede på
-    const keep = new Set(Scoreboard.BOARDS.flatMap(board =>
-      [false, true].flatMap(mobile => this.topFor(board, SCOREBOARD_MAX, "", mobile))
-    ));
+    const keep = new Set(this.allTops());
     this.entries = this.entries.filter(e => keep.has(e));
     this.lastPlacement = this.placementOf(entry);
     this.boardIndex = this.lastPlacement ? this.lastPlacement.boardIndex : 0;
+    this.periodIndex = this.lastPlacement ? this.lastPlacement.periodIndex : Scoreboard.PERIODS.length - 1;
     this.save();
     this.upload(entry);
   }
 
   // ---- Online ----
   // Kald til Supabase. Den nye "publishable" nøgle sendes kun som apikey, den gamle "anon" nøgle også som Authorization
-  request(query, options = {}) {
+  // path er det, der står efter /rest/v1/: tabellen eller rpc/funktionen
+  request(path, options = {}) {
     const headers = { apikey: ONLINE_KEY, "Content-Type": "application/json", ...options.headers };
     if (ONLINE_KEY.startsWith("eyJ")) headers.Authorization = `Bearer ${ONLINE_KEY}`;
-    return fetch(`${ONLINE_URL}/rest/v1/${ONLINE_TABLE}${query}`, { ...options, headers }).then(res => {
+    return fetch(`${ONLINE_URL}/rest/v1/${path}`, { ...options, headers }).then(res => {
       if (!res.ok) throw new Error(`Top-listen svarede ${res.status}`);
       return res.json();
     });
   }
 
-  // Henter top 100 på hver af de fire lister, for både telefon og computer, og lægger dem sammen
+  // Henter alle spil, der er med i top 100 på en af listerne, for begge enheder og alle perioder, i ét kald.
+  // Databasens funktion top_scores (se supabase-opsaetning.sql) får periodernes start i browserens egen tid
   refresh() {
     if (!this.isOnline) return Promise.resolve();
-    const fields = "id,name,score,fruits,birds,powerups,specials,combo,time,mobile";
-    const lists = Scoreboard.BOARDS.flatMap(board => [false, true].map(mobile =>
-      this.request(`?select=${fields}&mobile=eq.${mobile}&order=${board.stat}.desc,score.desc&limit=${SCOREBOARD_MAX}`)
-    ));
-    return Promise.all(lists)
-      .then(results => {
+    const starts = Scoreboard.periodStarts();
+    const body = {
+      day_start: new Date(starts.day).toISOString(),
+      week_start: new Date(starts.week).toISOString(),
+      month_start: new Date(starts.month).toISOString(),
+      max_rows: SCOREBOARD_MAX,
+    };
+    return this.request("rpc/top_scores", { method: "POST", body: JSON.stringify(body) })
+      .then(rows => {
         const byId = new Map();
-        results.flat().forEach(entry => byId.set(entry.id, Scoreboard.clean(entry)));
+        rows.forEach(entry => byId.set(entry.id, Scoreboard.clean(entry)));
         // det seneste spil skal stadig kunne fremhæves, så det beholder sin plads blandt de nye poster
         const last = this.lastEntry;
         if (last && last.id != null && byId.has(last.id)) byId.set(last.id, last);
@@ -134,27 +170,48 @@ class Scoreboard {
   // Sender et spil til den fælles liste og henter listen igen bagefter
   upload(entry) {
     if (!this.isOnline) return;
-    const { id, ...row } = entry;
-    this.request("", { method: "POST", headers: { Prefer: "return=representation" }, body: JSON.stringify(row) })
+    // id og tidspunkt sætter databasen selv
+    const { id, created, ...row } = entry;
+    this.request(ONLINE_TABLE, { method: "POST", headers: { Prefer: "return=representation" }, body: JSON.stringify(row) })
       .then(([saved]) => {
         entry.id = saved.id;
+        entry.created = Date.parse(saved.created_at) || entry.created;
         return this.refresh();
       })
       .catch(err => console.warn("Kunne ikke gemme spillet på den fælles top-liste:", err));
   }
 
-  // Placeringen i top 100 på den liste, hvor posten står bedst: { boardIndex, rank }, hvor rank 1 er bedst.
-  // Ved lige placering vinder den første liste, så point kommer før frugter, tid og combo.
-  // Er posten ikke med i top 100 på nogen liste, er svaret null
-  placementOf(entry) {
+  // Den bedste placering for posten i én periode: { boardIndex, rank }, hvor rank 1 er bedst.
+  // Ved lige placering vinder den første liste. Med boards kan man nøjes med nogle af listerne
+  bestIn(entry, period, boards = Scoreboard.BOARDS) {
     let best = null;
-    Scoreboard.BOARDS.forEach((board, i) => {
-      const index = this.topFor(board, SCOREBOARD_MAX).indexOf(entry);
+    boards.forEach(board => {
+      const index = this.topFor(board, SCOREBOARD_MAX, "", entry.mobile, period).indexOf(entry);
       if (index !== -1 && (best === null || index + 1 < best.rank)) {
-        best = { boardIndex: i, rank: index + 1 };
+        best = { boardIndex: Scoreboard.BOARDS.indexOf(board), rank: index + 1 };
       }
     });
     return best;
+  }
+
+  // Hvor spillet står bedst. Den største periode, hvor det kom på top 5, vinder: altid, så måned, uge og dag.
+  // Kom det ikke på top 5 nogen steder, bruges den bedste placering under "Altid" (top 100).
+  // Svaret er { periodIndex, boardIndex, rank, topRank }, eller null hvis det ikke er med nogen steder.
+  // topRank er placeringen på point- eller combo-listen i samme periode, hvis den er top 5 (ellers null)
+  placementOf(entry) {
+    const order = [...Scoreboard.PERIODS.keys()].reverse(); // altid, måned, uge, dag
+    for (const periodIndex of order) {
+      const period = Scoreboard.PERIODS[periodIndex];
+      const best = this.bestIn(entry, period);
+      if (best && best.rank <= SCOREBOARD_SIZE) {
+        const record = this.bestIn(entry, period, Scoreboard.BOARDS.filter(b => b.record));
+        const topRank = record && record.rank <= SCOREBOARD_SIZE ? record.rank : null;
+        return { periodIndex, ...best, topRank };
+      }
+    }
+    const allIndex = Scoreboard.PERIODS.length - 1;
+    const allTime = this.bestIn(entry, Scoreboard.PERIODS[allIndex]);
+    return allTime ? { periodIndex: allIndex, ...allTime, topRank: null } : null;
   }
 
   // Går til en bestemt liste, når man klikker på dens fane
@@ -170,10 +227,19 @@ class Scoreboard {
 }
 
 // title er overskriften på listen, tab er teksten på fanen, og stat er det tal, listen er sorteret efter
-// (det bliver fremhævet i hver post)
+// (det bliver fremhævet i hver post). record betyder, at top 5 her giver raketten med "TOP 1" til "TOP 5"
 Scoreboard.BOARDS = [
-  { title: "Flest point", tab: "Point", stat: "score", sort: (a, b) => b.score - a.score || b.fruits - a.fruits },
+  { title: "Flest point", tab: "Point", stat: "score", record: true, sort: (a, b) => b.score - a.score || b.fruits - a.fruits },
   { title: "Flest frugter", tab: "Frugter", stat: "fruits", sort: (a, b) => b.fruits - a.fruits || b.score - a.score },
   { title: "Længste spil", tab: "Tid", stat: "time", sort: (a, b) => b.time - a.time || b.score - a.score },
-  { title: "Længste combo", tab: "Combo", stat: "combo", sort: (a, b) => b.combo - a.combo || b.score - a.score },
+  { title: "Længste combo", tab: "Combo", stat: "combo", record: true, sort: (a, b) => b.combo - a.combo || b.score - a.score },
+  { title: "Flest fugle", tab: "Fugle", stat: "birds", sort: (a, b) => b.birds - a.birds || b.score - a.score },
+];
+
+// Perioderne. key bruges af periodStarts. Den sidste er "Altid", som vises først
+Scoreboard.PERIODS = [
+  { key: "day", label: "I dag" },
+  { key: "week", label: "Denne uge" },
+  { key: "month", label: "Denne måned" },
+  { key: "all", label: "Altid" },
 ];

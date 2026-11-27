@@ -62,6 +62,12 @@ document.addEventListener("click", (e) => {
 document.addEventListener("input", (e) => {
   if (e.target.matches(".board-filter")) scoreboardView.render(scoreboard);
 });
+// periode-listen: i dag, denne uge, denne måned eller altid
+document.addEventListener("change", (e) => {
+  if (!e.target.matches(".board-period")) return;
+  scoreboard.setPeriod(Number(e.target.value));
+  scoreboardView.render(scoreboard);
+});
 
 // Hemmelig knap: et klik på overskriften "Snake!" sender fyrværkeri op, som ved en 1. plads.
 // Holder man Shift nede, får man det korte, som ved en 2.-5. plads

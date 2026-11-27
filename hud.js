@@ -45,19 +45,19 @@ class StatusRow {
   update(powerups) {
     const items = [];
     if (powerups.shieldCount > 0) {
-      items.push({ text: `Skjold: ${powerups.shieldCount}`, color: BONUS_FRUITS.shield.color });
+      items.push({ text: `Skjold ${powerups.shieldCount}`, color: BONUS_FRUITS.shield.color });
     }
     if (powerups.slowLevel > 0) {
-      items.push({ text: `Langsom: ${powerups.slowLevel}`, color: BONUS_FRUITS.slow.color });
+      items.push({ text: `Ur ${powerups.slowLevel}`, color: BONUS_FRUITS.slow.color });
     }
     if (powerups.starTimeLeft > 0) {
-      items.push({ text: `Stjerne: ${Math.ceil(powerups.starTimeLeft / 1000)}s`, color: BONUS_FRUITS.star.color });
+      items.push({ text: `Stjerne ${Math.ceil(powerups.starTimeLeft / 1000)}s`, color: BONUS_FRUITS.star.color });
     }
     if (powerups.doubleTimeLeft > 0) {
-      items.push({ text: `Dobbelt: ${Math.ceil(powerups.doubleTimeLeft / 1000)}s`, color: BONUS_FRUITS.double.color });
+      items.push({ text: `Dobbelt ${Math.ceil(powerups.doubleTimeLeft / 1000)}s`, color: BONUS_FRUITS.double.color });
     }
     if (powerups.buffLevel > 0) {
-      items.push({ text: `Forstærk: ${powerups.buffLevel}`, color: BONUS_FRUITS.buff.color });
+      items.push({ text: `Forstærk ${powerups.buffLevel}`, color: BONUS_FRUITS.buff.color });
     }
 
     // genopbyg kun, når noget er ændret

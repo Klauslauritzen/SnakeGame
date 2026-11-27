@@ -32,6 +32,8 @@ class PowerUps {
     let type;
     if (kind === "fruit") {
       type = PowerUps.randomFruitType();
+    } else if (POWERUP_TYPES.includes(kind)) {
+      type = kind; // en bestemt power-up, fx den garanterede
     } else if (kind === "powerup") {
       type = PowerUps.randomPowerupType();
     } else {
