@@ -1228,7 +1228,7 @@ canvas.fireworks.active {
             </div>
             <div class="rule-card" style="--accent: #f72585">
               <canvas class="rule-icon" data-sprite="shrink" width="40" height="40"></canvas>
-              <div class="rule-text"><b>Kort</b><span>Slangen bliver 4 led kortere</span></div>
+              <div class="rule-text"><b>Kort</b><span>Slangen bliver 20 % kortere, mindst 3 led</span></div>
             </div>
             <div class="rule-card" style="--accent: #ff9f1c">
               <canvas class="rule-icon" data-sprite="double" width="40" height="40"></canvas>
@@ -1324,7 +1324,7 @@ canvas.fireworks.active {
 <!-- Fyrværkeri: dækker hele siden, ligger øverst og tager ikke imod klik -->
 <canvas id="fireworks" class="fireworks"></canvas>
 
-<!-- ?v=9 tvinger browseren til at hente filerne på ny. Hæv tallet (overalt, også i style.css-linket) ved hver opdatering -->
+<!-- ?v=10 tvinger browseren til at hente filerne på ny. Hæv tallet (overalt, også i style.css-linket) ved hver opdatering -->
 <script>
 // ---- Konstanter for hele spillet ----
 
@@ -1384,7 +1384,8 @@ const SLOW_STEPS = 3;         // hvert langsomt ur sænker farten for altid så 
 const SLOW_POINT_STAGES = 2;   // og sætter æblets point så mange trin tilbage pr. ur
 const MAX_TICK_DELAY = 220;    // langsomste tilladte tick-tid i ms, uanset hvor mange ure man tager
 const MAX_SHIELDS = 9;         // højst så mange skjolde man kan have
-const SHRINK_AMOUNT = 4;       // så mange led slangen mister med den korte-power-up
+const SHRINK_SHARE = 0.2;      // den korte power-up fjerner så stor en del af slangen (20 %)
+const SHRINK_MIN = 3;          // men altid mindst så mange led
 const MIN_SNAKE_LENGTH = 3;    // slangen bliver aldrig kortere end dette
 const BONUS_FRUITS = {
   pear: { color: "#b5c94b" },
@@ -3979,7 +3980,7 @@ class Game {
 
   activatePowerUp(type, at) {
     this.score.powerups += 1;
-    if (type === "shrink") this.snake.shrink(SHRINK_AMOUNT);
+    if (type === "shrink") this.snake.shrink(Math.max(SHRINK_MIN, Math.round(this.snake.length * SHRINK_SHARE)));
     else this.powerups.activate(type);
     if (type === "star") this.spawnStarBird();
     if (type === "slow") this.startTimer(); // tag den nye fart i brug med det samme

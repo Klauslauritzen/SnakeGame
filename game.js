@@ -335,7 +335,7 @@ class Game {
 
   activatePowerUp(type, at) {
     this.score.powerups += 1;
-    if (type === "shrink") this.snake.shrink(SHRINK_AMOUNT);
+    if (type === "shrink") this.snake.shrink(Math.max(SHRINK_MIN, Math.round(this.snake.length * SHRINK_SHARE)));
     else this.powerups.activate(type);
     if (type === "star") this.spawnStarBird();
     if (type === "slow") this.startTimer(); // tag den nye fart i brug med det samme
